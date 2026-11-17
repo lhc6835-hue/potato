@@ -38,3 +38,6 @@ export function duration(sec: number): string {
 }
 
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
+
+/** 개수 표기: 소수점 버림 */
+export const cnt = (n: number) => fmt(Math.floor(n + 1e-9));
