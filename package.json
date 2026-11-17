@@ -7,13 +7,15 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:single": "vite build -c vite.single.config.ts"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "vite-plugin-singlefile": "^2.3.4"
   },
   "dependencies": {
     "galmuri": "^2.40.3",

@@ -19,6 +19,8 @@ npm run dev
 
 빌드는 `npm run build` → `dist/` (정적 파일이라 아무 곳에나 올리면 된다).
 
+파일 하나로 뽑으려면 `npm run build:single` → `dist-single/index.html` (폰트·스크립트 전부 포함, 더블클릭으로 실행).
+
 ## 조작
 
 - 위아래로 드래그(PC는 휠)해서 건물을 본다.
