@@ -593,7 +593,7 @@ export function offlineSeconds(s: GameState) {
 export function offlineEarnings(s: GameState, sec: number) {
   const capped = Math.min(sec, offlineSeconds(s));
   let total = 0;
-  for (const b of s.branches) total += b.income * automation(b) * 0.7 * capped;
+  for (const b of s.branches) total += b.income * automation(b, s) * 0.7 * capped;
   return { sec: capped, money: total };
 }
 

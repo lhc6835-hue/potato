@@ -172,9 +172,10 @@ export function tickBranch(s: GameState, b: BranchState, dt: number) {
 }
 
 /** 이 분점이 사람 손 없이 굴러가는 비율 (오프라인 수익에 쓴다) */
-export function automation(b: BranchState) {
+export function automation(b: BranchState, s?: GameState) {
   if (!b.lines.length) return 0;
-  const lines = b.lines.filter((l) => l.manager !== null).length / b.lines.length;
-  const lift = b.lift.manager !== null ? 1 : 0;
+  const pt = s && partTimers(s) ? PART_TIME : 0;
+  const lines = b.lines.reduce((a, l) => a + (l.manager !== null ? 1 : pt), 0) / b.lines.length;
+  const lift = b.lift.manager !== null ? 1 : 0.6;
   return lines * lift;
 }
