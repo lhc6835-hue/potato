@@ -261,7 +261,8 @@ export function priceDemand(b: BranchState) {
 export function salePrice(s: GameState, b: BranchState, m: MenuDef) {
   const fame = 0.7 + b.rating * 0.1;
   const likes = district(b).likes.includes(m.cat) || regionById(b.region).likes?.includes(m.cat) ? 1.3 : 1;
-  return m.price * regionMult(b) * district(b).price * b.priceMult * fame * likes * globalPrice(s) * varietyMult(s, m) *
+  const rain = m.cat === "pan" && s.events.some((e) => e.id === "rain") ? 2 : 1;
+  return m.price * regionMult(b) * district(b).price * b.priceMult * fame * likes * rain * globalPrice(s) * varietyMult(s, m) *
     managerMult(s, b.counter.manager, "counter", "price");
 }
 

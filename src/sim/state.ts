@@ -17,6 +17,8 @@ export interface LineState {
   tray: number;
   /** 누적 생산 */
   made: number;
+  /** 알바생이 돌리는 중 (느림) */
+  auto?: boolean;
 }
 
 export interface BranchState {

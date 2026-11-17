@@ -55,14 +55,26 @@ export function useUi() {
   return ui;
 }
 
-export function toast(text: string, gold = false) {
-  const t = { id: ++toastId, text, gold };
-  ui.toasts = [...ui.toasts.slice(-3), t];
+const queue: Toast[] = [];
+function pump() {
+  while (ui.toasts.length < 2 && queue.length) {
+    const t = queue.shift()!;
+    ui.toasts = [...ui.toasts, t];
+    setTimeout(() => {
+      ui.toasts = ui.toasts.filter((x) => x !== t);
+      pump();
+      bump();
+    }, 2600);
+  }
   bump();
-  setTimeout(() => {
-    ui.toasts = ui.toasts.filter((x) => x !== t);
-    bump();
-  }, 3300);
+}
+
+/** 알림: 동시에 두 개까지, 나머지는 줄을 선다 (같은 문구는 합친다) */
+export function toast(text: string, gold = false) {
+  if (queue.some((q) => q.text === text) || ui.toasts.some((q) => q.text === text)) return;
+  queue.push({ id: ++toastId, text, gold });
+  if (queue.length > 6) queue.splice(0, queue.length - 6);
+  pump();
 }
 
 export function openSheet(sh: Sheet) {

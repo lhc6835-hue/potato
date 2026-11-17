@@ -182,10 +182,10 @@ function WorldOverlay({ cs, W }: { cs: number; W: number }) {
         {can && <span class="dot" />}
       </div>,
     );
-    if (!l.cooking && l.manager === null)
+    if (l.manager === null && (!l.cooking || l.auto))
       items.push(
-        <div key={`h${i}`} class="hint" style={{ left: px(L.ix0 + 54), top: px(top + 19) }}>
-          눌러서 조리
+        <div key={`h${i}`} class="hint" style={{ left: px(L.ix0 + 48), top: px(top + 19), animation: l.auto ? "none" : undefined, opacity: l.auto ? 0.75 : 1 }}>
+          {l.auto ? "알바생 조리 중 · 눌러서 가속" : "눌러서 조리"}
         </div>,
       );
   });

@@ -267,7 +267,17 @@ export class Scene {
     }
 
     this.updateWalkers(dt);
+
+    // 튀김기 과열: 주방에서 연기가 피어오른다
+    if (s.events.some((e) => e.id === "overheat" && e.branch === b.id) && b.lines.length) {
+      this.smokeT -= dt;
+      if (this.smokeT <= 0) {
+        this.smokeT = 0.9 + Math.random();
+        this.smoke(Math.floor(Math.random() * b.lines.length));
+      }
+    }
   }
+  smokeT = 0;
 
   private pickCustomer(): CustomerDef {
     const ch = Math.max(this.s.chapter, this.s.prestige.best);

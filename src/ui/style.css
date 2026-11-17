@@ -264,7 +264,7 @@ button { font: inherit; color: inherit; }
 .dlg-box .txt { font-size: 14px; line-height: 1.55; }
 .dlg-box.narr { background: #2c2523; color: var(--text); justify-content: center; text-align: center; }
 .dlg-box .next { position: absolute; right: 12px; bottom: 8px; font-size: 10px; color: #a89070; animation: pulse 1s infinite; }
-.dlg-skip { position: absolute; top: calc(var(--safe-t) + 12px); right: 12px; z-index: 41; }
+.dlg-skip { position: absolute; bottom: calc(var(--safe-b) + 132px); right: 16px; z-index: 41; }
 .chapter-card { position: absolute; inset: 0; display: grid; place-items: center; z-index: 39; pointer-events: none; }
 .chapter-card div { text-align: center; animation: fade 0.6s; }
 .chapter-card .num { color: var(--accent); font-size: 12px; letter-spacing: 2px; }
@@ -274,7 +274,7 @@ button { font: inherit; color: inherit; }
 .toasts { position: absolute; left: 0; right: 0; top: calc(var(--safe-t) + 112px); display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 30; pointer-events: none; }
 .toast {
   background: #2c2523f4; border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; font-size: 12px;
-  animation: toast 3.2s ease forwards; max-width: 90%; text-align: center;
+  animation: toast 2.6s ease forwards; max-width: 90%; text-align: center;
 }
 .toast.gold { border-color: var(--accent); color: #ffe0a0; }
 @keyframes toast { 0% { transform: translateY(-8px); opacity: 0; } 8%, 85% { transform: none; opacity: 1; } 100% { opacity: 0; } }

@@ -31,6 +31,9 @@ export function startBatch(s: GameState, b: BranchState, l: LineState) {
   return true;
 }
 
+export const PART_TIME = 0.35;
+export const partTimers = (s: GameState) => Math.max(s.chapter, s.prestige.best) >= 3;
+
 /** 직접 탭: 멈춰 있으면 시작, 조리 중이면 진행 가속 */
 export function tapLine(s: GameState, b: BranchState, l: LineState) {
   s.stats.taps++;
@@ -86,13 +89,16 @@ export function tickBranch(s: GameState, b: BranchState, dt: number) {
   // 2) 주방 라인
   for (const l of b.lines) {
     if (!l.cooking && l.manager !== null) startBatch(s, b, l);
+    // 챕터 3부터: 매니저 없는 라인은 알바생이 느리게 돌린다
+    if (!l.cooking && l.manager === null && partTimers(s) && startBatch(s, b, l)) l.auto = true;
     if (l.cooking) {
       const cyc = E.lineCycle(s, b, l);
-      l.progress += dt / cyc.time;
+      l.progress += (dt / cyc.time) * (l.auto && l.manager === null ? PART_TIME : 1);
       if (l.progress >= 1) {
         l.tray += l.batchOut;
         l.made += l.batchOut;
         l.cooking = false;
+        l.auto = false;
         l.progress = 0;
         bus.emit("batch", { branch: b.id, line: b.lines.indexOf(l), count: l.batchOut });
         const o = s.order;
