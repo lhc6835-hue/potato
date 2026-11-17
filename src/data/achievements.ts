@@ -43,31 +43,31 @@ add("floors-12", "감자 마천루", "한 분점에 12층 운영", (s) => s.bran
 // 연구
 for (const n of [1, 5, 10, 17]) add(`found-${n}`, `연구원 ${n}`, `레시피 ${n}개 발견`, (s) => s.research.found.length >= n);
 for (const n of [5, 20, 40]) add(`fail-${n}`, `실패는 감자의 어머니 ${n}`, `실패작 ${n}개`, (s) => s.research.fails.length >= n);
-add("gamjatang", "감자 없는 감자탕", "감자탕 발견", (s) => s.research.found.includes("gamjatang"), true);
+add("gamjatang", "뼈 국물", "감자탕 발견", (s) => s.research.found.includes("gamjatang"), true);
 // 품종
 for (const n of [3, 6, 10]) add(`var-${n}`, `품종 수집가 ${n}`, `품종 ${n}종`, (s) => s.farm.varieties.length >= n);
 // 별점
 add("rating-5", "만점 감자", "분점 별점 4.9 이상", (s) => s.branches.some((b) => b.rating >= 4.9));
-add("rating-low", "다음엔 잘하자", "분점 별점 1.5 이하", (s) => s.branches.some((b) => b.rating <= 1.5), true);
+add("rating-low", "위기", "분점 별점 1.5 이하", (s) => s.branches.some((b) => b.rating <= 1.5), true);
 // 가격
-add("price-max", "배짱 장사", "가격 2배로 설정", (s) => s.branches.some((b) => b.priceMult >= 1.99), true);
-add("price-min", "자선 사업", "가격 0.6배로 설정", (s) => s.branches.some((b) => b.priceMult <= 0.61), true);
+add("price-max", "고가 전략", "가격 2배로 설정", (s) => s.branches.some((b) => b.priceMult >= 1.99), true);
+add("price-min", "박리다매", "가격 0.6배로 설정", (s) => s.branches.some((b) => b.priceMult <= 0.61), true);
 // 주문, 이벤트
 for (const n of [1, 10, 50]) add(`order-${n}`, `주문 처리 ${n}`, `특별 주문 ${n}개 완료`, (s) => s.stats.ordersDone >= n);
-add("rival-win", "뿌리 대 덩이줄기", "고구마 그룹 점유율 0%", (s) => s.rival.defeated);
+add("rival-win", "경쟁 승리", "고구마 그룹 점유율 0%", (s) => s.rival.defeated);
 // 회차
 for (const n of [1, 3, 10, 25]) add(`reboot-${n}`, `리부트 ${n}회`, `브랜드 리부트 ${n}회`, (s) => s.prestige.reboots >= n);
-add("rule", "고난을 즐기는 자", "회차 규칙을 걸고 리부트", (s) => s.prestige.rules.length > 0);
-add("rule-all", "자학", "회차 규칙 4개 모두 걸기", (s) => s.prestige.rules.length >= 4, true);
+add("rule", "도전", "회차 규칙을 걸고 리부트", (s) => s.prestige.rules.length > 0);
+add("rule-all", "최고 난이도", "회차 규칙 4개 모두 걸기", (s) => s.prestige.rules.length >= 4, true);
 // 엔딩, 신시장
-add("ending", "감자는 감자다", "엔딩 보기", (s) => s.ended);
+add("ending", "세계 감자의 날", "엔딩 보기", (s) => s.ended);
 for (const n of [1, 5, 10, 25, 50]) add(`nm-${n}`, `신시장 개척 ${n}`, `신시장 ${n}곳 진출`, (s) => s.bestMarket >= n);
 // 손님
 add("cust-all", "손님 도감 완성", "모든 손님 만나기", (s) => s.seenCustomers.length >= 11);
 for (const n of [10, 25, 44]) add(`review-${n}`, `리뷰 수집 ${n}`, `리뷰 ${n}개 모으기`, (s) => s.reviews.length >= n);
 // 시간
-add("day-30", "한 달째 감자", "게임 내 30일", (s) => s.clock >= 30 * 24 * 20);
-add("play-10h", "진심", "플레이 10시간", (s) => s.played >= 36000);
+add("day-30", "한 달", "게임 내 30일", (s) => s.clock >= 30 * 24 * 20);
+add("play-10h", "열 시간", "플레이 10시간", (s) => s.played >= 36000);
 
 export const ACHIEVEMENTS = A;
 export const ACH: Record<string, AchDef> = Object.fromEntries(A.map((a) => [a.id, a]));

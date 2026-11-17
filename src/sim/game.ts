@@ -11,6 +11,7 @@ import { VARIETIES, VARIETY } from "../data/varieties";
 import { PATENT, patentCost, RULES } from "../data/patents";
 import * as E from "./econ";
 import { tickBranch, automation } from "./branch";
+import { tickBoss } from "./boss";
 import { newBranch, newGame, newLine, type BranchState, type GameState } from "./state";
 import { bus } from "./bus";
 
@@ -21,6 +22,7 @@ let achTimer = 0;
 export function tick(s: GameState, dt: number) {
   s.clock += dt;
   s.played += dt;
+  tickBoss(s, dt);
   for (const b of s.branches) tickBranch(s, b, dt);
 
   // 아이디어 (연구 포인트): 라인 수에 비례
@@ -78,7 +80,7 @@ export function advanceChapter(s: GameState) {
   }
   s.chapter++;
   s.prestige.best = Math.max(s.prestige.best, s.chapter);
-  if (s.chapter === 6 && s.rival.share === 0 && !s.rival.defeated) s.rival.share = 50;
+  if (s.chapter === 7 && s.rival.share === 0 && !s.rival.defeated) s.rival.share = 50;
   unlockChapterMenus(s);
   bus.emit("chapter", { n: s.chapter, reward });
   return reward;
@@ -252,37 +254,44 @@ function clearSlot(s: GameState, id: number) {
     if (m.at.slot === "line" && b.lines[m.at.line]?.manager === id) b.lines[m.at.line].manager = null;
     if (m.at.slot === "lift" && b.lift.manager === id) b.lift.manager = null;
     if (m.at.slot === "counter" && b.counter.manager === id) b.counter.manager = null;
+    if (m.at.slot === "porter" && b.supply.manager === id) b.supply.manager = null;
   }
   m.at = null;
 }
 
 export function assign(s: GameState, managerId: number, b: BranchState, slot: SlotKind, line = 0) {
   // 자리에 있던 사람은 대기로
-  const current = slot === "line" ? b.lines[line].manager : slot === "lift" ? b.lift.manager : b.counter.manager;
+  const current = slotHolder(b, slot, line);
   if (current !== null) clearSlot(s, current);
   clearSlot(s, managerId);
   const m = s.managers.find((x) => x.data.id === managerId);
   if (!m) return;
   if (slot === "line") b.lines[line].manager = managerId;
   else if (slot === "lift") b.lift.manager = managerId;
+  else if (slot === "porter") b.supply.manager = managerId;
   else b.counter.manager = managerId;
   m.at = { branch: b.id, slot, line };
+}
+
+export function slotHolder(b: BranchState, slot: SlotKind, line = 0) {
+  return slot === "line" ? b.lines[line]?.manager ?? null : slot === "lift" ? b.lift.manager : slot === "porter" ? b.supply.manager : b.counter.manager;
 }
 
 export function unassign(s: GameState, managerId: number) {
   clearSlot(s, managerId);
 }
 
-/** 빈 자리에 대기 매니저를 자동 배치 (라인 → 덤웨이터 → 카운터) */
+/** 빈 자리에 대기 매니저를 자동 배치 (운반 → 덤웨이터 → 라인 → 카운터) */
 export function autoAssign(s: GameState, b: BranchState) {
   const free = () => s.managers.filter((m) => !m.at).sort((x, y) => y.data.power - x.data.power);
+  if (b.supply.manager === null && free()[0]) assign(s, free()[0].data.id, b, "porter");
+  if (b.lines.length > 1 && b.lift.manager === null && free()[0]) assign(s, free()[0].data.id, b, "lift");
   b.lines.forEach((l, i) => {
     if (l.manager === null) {
       const f = free()[0];
       if (f) assign(s, f.data.id, b, "line", i);
     }
   });
-  if (b.lift.manager === null && free()[0]) assign(s, free()[0].data.id, b, "lift");
   if (b.counter.manager === null && free()[0]) assign(s, free()[0].data.id, b, "counter");
 }
 
@@ -353,7 +362,12 @@ export function openBranch(s: GameState, regionId: string, slot: number) {
     menus.unshift(r.localMenu);
     menus.length = Math.min(menus.length, 3);
   }
-  b.lines = menus.reverse().map((id) => newLine(id, startLv));
+  b.lines = menus.reverse().map((id) => {
+    const l = newLine(id, startLv);
+    l.bin = E.binCap(s, b, l);
+    return l;
+  });
+  b.maxLines = Math.max(3, b.lines.length);
   b.lift.lv = b.counter.lv = b.supply.lv = Math.max(1, startLv);
   b.storage = E.storageCap(b) * 0.5;
   s.branches.push(b);
@@ -445,7 +459,7 @@ function tickRival(s: GameState, dt: number) {
   if (!featureOn(s, "rival") || s.rival.defeated) return;
   const avg = s.branches.reduce((a, b) => a + b.rating, 0) / Math.max(1, s.branches.length);
   s.rival.share = Math.max(0, Math.min(60, s.rival.share - dt * 0.012 * (avg - 3.3)));
-  if (s.rival.share <= 0 && s.chapter >= 6) {
+  if (s.rival.share <= 0 && s.chapter >= 7) {
     s.rival.defeated = true;
     bus.emit("rivalDefeated");
   }
@@ -593,7 +607,7 @@ export function offlineSeconds(s: GameState) {
 export function offlineEarnings(s: GameState, sec: number) {
   const capped = Math.min(sec, offlineSeconds(s));
   let total = 0;
-  for (const b of s.branches) total += b.income * automation(b, s) * 0.7 * capped;
+  for (const b of s.branches) total += b.income * automation(b) * 0.7 * capped;
   return { sec: capped, money: total };
 }
 

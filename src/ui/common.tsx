@@ -8,6 +8,7 @@ import { MENU } from "../data/menus";
 import { PORTRAITS, personRows, personPal, staffLook } from "../art/people";
 import { ui, closeSheet, bump } from "./store";
 import { fmt } from "../util/format";
+import { sfx } from "../sfx";
 
 function PixelCanvas({ w, h, draw, size }: { w: number; h: number; draw: (p: any) => void; size?: number; key?: any }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -71,9 +72,11 @@ export function BuyBtn({ cost, onBuy, label = "업그레이드", n, cls = "", cu
       disabled={!can || !isFinite(cost)}
       onClick={(e) => {
         e.stopPropagation();
-        if (onBuy() !== false) {
+        const r = onBuy();
+        if (r !== false && r !== null) {
           if (ui.s.settings.vibrate) navigator.vibrate?.(10);
-        }
+          sfx("upgrade", 0.6);
+        } else sfx("error");
         bump();
       }}
     >

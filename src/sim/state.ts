@@ -17,8 +17,22 @@ export interface LineState {
   tray: number;
   /** 누적 생산 */
   made: number;
-  /** 알바생이 돌리는 중 (느림) */
+  /** 라인 옆 감자 통 (창고에서 날라 온 감자) */
+  bin: number;
   auto?: boolean;
+}
+
+/** 플레이어가 직접 움직이는 사장. floor -1 = 지하, 0 = 1층. x는 층 실내 폭 기준 0..1 */
+export interface BossState {
+  floor: number;
+  x: number;
+  /** 계단을 오르내리는 중이면 출발 층 → 도착 층 진행도 */
+  stair: { from: number; to: number; t: number } | null;
+  task: null | { kind: "fetch"; line: number; picked: boolean } | { kind: "cook"; line: number };
+  carry: number;
+  facing: 1 | -1;
+  /** 감자를 집는 등 잠깐 멈춤 */
+  wait: number;
 }
 
 export interface BranchState {
@@ -31,7 +45,10 @@ export interface BranchState {
   maxLines: number;
   lift: { lv: number; manager: number | null; t: number; moving: boolean; load: Record<string, number>; call: boolean };
   counter: { lv: number; manager: number | null };
-  supply: { lv: number };
+  /** 창고: 레벨, 운반 매니저 (지하 → 주방) */
+  supply: { lv: number; manager: number | null };
+  /** 분점 기본 직원 (본점 밖 분점은 매니저가 없어도 느리게 돌아간다) */
+  staff: boolean;
   storage: number;
   stock: Record<string, number>;
   /** 가격 배수 0.6 ~ 2.0 */
@@ -113,17 +130,19 @@ export interface GameState {
   /** 특별 주문 */
   order: { menu: string; need: number; got: number; left: number; reward: number; branch: string } | null;
   orderTimer: number;
-  stats: { taps: number; lifts: number; customers: number; ordersDone: number; criticBest: number; maxIncome: number };
+  stats: { taps: number; lifts: number; customers: number; ordersDone: number; criticBest: number; maxIncome: number; fetches: number };
+  boss: BossState;
 }
 
 export function newBranch(id: string, region: string, slot: number, district: DistrictKind, firstMenu: string | null): BranchState {
   return {
     id, region, slot, district,
     lines: firstMenu ? [newLine(firstMenu)] : [],
-    maxLines: 3,
+    maxLines: 1,
     lift: { lv: 1, manager: null, t: 0, moving: false, load: {}, call: false },
     counter: { lv: 1, manager: null },
-    supply: { lv: 1 },
+    supply: { lv: 1, manager: null },
+    staff: id !== "b0",
     storage: 30,
     stock: {},
     priceMult: 1,
@@ -135,12 +154,12 @@ export function newBranch(id: string, region: string, slot: number, district: Di
 }
 
 export function newLine(menu: string, lv = 1): LineState {
-  return { menu, lv: [lv, lv, lv], manager: null, progress: 0, cooking: false, batchOut: 0, tray: 0, made: 0 };
+  return { menu, lv: [lv, lv, lv], manager: null, progress: 0, cooking: false, batchOut: 0, tray: 0, made: 0, bin: 0 };
 }
 
 export function newGame(): GameState {
   return {
-    v: 1,
+    v: 2,
     money: 0,
     earned: 0,
     earnedAll: 0,
@@ -176,6 +195,7 @@ export function newGame(): GameState {
     lastTick: Date.now(),
     order: null,
     orderTimer: 240,
-    stats: { taps: 0, lifts: 0, customers: 0, ordersDone: 0, criticBest: 0, maxIncome: 0 },
+    stats: { taps: 0, lifts: 0, customers: 0, ordersDone: 0, criticBest: 0, maxIncome: 0, fetches: 0 },
+    boss: { floor: 0, x: 0.5, stair: null, task: null, carry: 0, facing: -1, wait: 0 },
   };
 }

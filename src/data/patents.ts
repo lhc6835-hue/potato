@@ -36,6 +36,6 @@ export const patentCost = (p: PatentDef, lv: number) => Math.ceil(p.base * Math.
 export const RULES = [
   { id: "nofry", name: "튀김기 금지", desc: "튀김 카테고리 메뉴를 만들 수 없다.", mult: 1.5 },
   { id: "pricey", name: "감자 파동", desc: "감자 시세가 항상 2배.", mult: 1.3 },
-  { id: "strike", name: "매니저 파업", desc: "매니저를 고용할 수 없다.", mult: 2.0 },
+  { id: "strike", name: "매니저 파업", desc: "매니저를 고용할 수 없다. 사장 혼자 한다.", mult: 2.0 },
   { id: "tiny", name: "좁은 건물", desc: "분점마다 최대 3층.", mult: 1.4 },
 ];

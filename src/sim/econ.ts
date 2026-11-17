@@ -179,9 +179,25 @@ export const LIFT_GROW = 1.15;
 export function liftCapacity(s: GameState, b: BranchState) {
   return 8 * power(b.lift.lv) * managerMult(s, b.lift.manager, "lift", "carry") * Math.pow(1.3, patent(s, "carry"));
 }
-/** 왕복 시간. 매니저가 없으면 두 배 느리다 (탭하면 한 번 빨라진다) */
+/** 왕복 시간. 분점 기본 직원만 있으면 느리다 */
 export function liftTrip(b: BranchState) {
-  return (1.6 + 0.35 * b.lines.length) * (b.lift.manager === null && !b.lift.call ? 2 : 1);
+  return (1.6 + 0.35 * b.lines.length) * (b.lift.manager === null && b.staff && !b.lift.call ? 1 / STAFF : 1);
+}
+
+/** 분점 기본 직원의 속도 (매니저 대비) */
+export const STAFF = 0.35;
+
+/** 라인 옆 감자 통 크기 */
+export function binCap(s: GameState, b: BranchState, l: LineState) {
+  const c = lineCycle(s, b, l);
+  return Math.max(12, Math.ceil(c.count * potatoesPer(s, MENU[l.menu]) * 6));
+}
+
+/** 운반 매니저(또는 분점 기본 직원)가 지하에서 주방으로 나르는 감자 (초당) */
+export function porterRate(s: GameState, b: BranchState) {
+  const base = 1.5 * power(b.supply.lv) * Math.pow(1.3, patent(s, "carry"));
+  if (b.supply.manager !== null) return base * managerMult(s, b.supply.manager, "porter", "carry");
+  return b.staff ? base * STAFF : 0;
 }
 export function liftRate(s: GameState, b: BranchState) {
   return liftCapacity(s, b) / liftTrip(b);

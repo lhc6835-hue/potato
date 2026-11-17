@@ -4,6 +4,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { GameState } from "../sim/state";
 import type { Scene, Hit } from "../render/scene";
 import type { Line } from "../data/story";
+import { sfx } from "../sfx";
 
 export type Tab = "shop" | "staff" | "lab" | "map" | "more";
 export type Sheet =
@@ -15,7 +16,7 @@ export type Sheet =
   | { kind: "storage" }
   | { kind: "roof" }
   | { kind: "goals" }
-  | { kind: "assign"; slot: "line" | "lift" | "counter"; line: number }
+  | { kind: "assign"; slot: "line" | "lift" | "counter" | "porter"; line: number }
   | null;
 
 export interface Toast { id: number; text: string; gold?: boolean }
@@ -78,14 +79,17 @@ export function toast(text: string, gold = false) {
 }
 
 export function openSheet(sh: Sheet) {
+  if (!ui.sheet) sfx("open");
   ui.sheet = sh;
   bump();
 }
 export function closeSheet() {
+  if (ui.sheet) sfx("close");
   ui.sheet = null;
   bump();
 }
 export function setTab(t: Tab) {
+  if (ui.tab !== t) sfx(t === "shop" ? "close" : "open");
   ui.tab = t;
   ui.sheet = null;
   bump();

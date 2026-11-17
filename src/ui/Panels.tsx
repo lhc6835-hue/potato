@@ -63,7 +63,7 @@ function StaffPanel() {
                 <div class="stat">효율 ×{c.power.toFixed(2)}</div>
                 {traitsOf(c).map((t) => <div class="stat">· {t.name} <span class="muted">{t.desc}</span></div>)}
               </div>
-              <BuyBtn cost={cost} label="고용" onBuy={() => { const m = G.hire(s, i); if (m) toast(`${m.name} 입사. "${["잘 부탁드립니다.", "감자 좋아합니다.", "…네.", "열심히 하겠습니다. 적당히."][m.id % 4]}"`); }} />
+              <BuyBtn cost={cost} label="고용" onBuy={() => { const m = G.hire(s, i); if (m) toast(`${m.name} 입사. 자리를 눌러 배치하자.`); }} />
             </div>
           ))}
           <button class="btn ghost wide" disabled={s.money < E.rerollCost(s)} onClick={() => { G.reroll(s); bump(); }}>
@@ -76,7 +76,7 @@ function StaffPanel() {
         이 가게 빈자리에 자동 배치
       </button>
       <div class="section"><span>우리 직원</span></div>
-      {!s.managers.length && <div class="list-empty">아직 아무도 없다. 사장님과 김비서뿐이다.</div>}
+      {!s.managers.length && <div class="list-empty">아직 고용한 직원이 없다.</div>}
       {[...s.managers].sort((a, b2) => b2.data.rarity - a.data.rarity || b2.data.power - a.data.power).map((m) => {
         const where = m.at ? s.branches.find((x) => x.id === m.at!.branch) : null;
         return (
@@ -85,7 +85,7 @@ function StaffPanel() {
             <div class="info">
               <div class="name">{m.data.name} <span style={{ color: RARITY_COLOR[m.data.rarity], fontSize: 10 }}>{RARITY_NAME[m.data.rarity]}</span> <span class="lv">×{m.data.power.toFixed(2)}</span></div>
               <div class="stat">{traitsOf(m.data).map((t) => t.name).join(" · ")}</div>
-              <div class="stat muted">{m.at && where ? `${regionById(where.region).name} · ${m.at.slot === "line" ? (where.lines[m.at.line] ? MENU[where.lines[m.at.line].menu].name : "?") : m.at.slot === "lift" ? "덤웨이터" : "카운터"}` : "대기 중"}</div>
+              <div class="stat muted">{m.at && where ? `${regionById(where.region).name} · ${m.at.slot === "line" ? (where.lines[m.at.line] ? MENU[where.lines[m.at.line].menu].name : "?") : m.at.slot === "lift" ? "덤웨이터" : m.at.slot === "porter" ? "창고 운반" : "카운터"}` : "대기 중"}</div>
             </div>
             {m.at && <button class="btn ghost small" onClick={() => { G.unassign(s, m.data.id); bump(); }}>빼기</button>}
           </div>
@@ -411,7 +411,7 @@ function CodexView() {
         s.research.fails.length ? s.research.fails.map((k) => {
           const [m, t] = k.split("+");
           return <div class="item"><div class="ico">🫠</div><div class="info"><div class="name">{METHODS.find((x) => x.id === m)?.name} + {TOPPINGS.find((x) => x.id === t)?.name}</div><div class="stat">{failText(m, t)}</div></div></div>;
-        }) : <div class="list-empty">아직 실패한 적이 없다. 그건 아직 시도를 안 했다는 뜻이다.</div>
+        }) : <div class="list-empty">아직 실패작이 없다.</div>
       )}
     </>
   );
@@ -441,6 +441,10 @@ function SettingsView() {
   return (
     <>
       <div class="item">
+        <div class="info"><div class="name">효과음</div><div class="stat">Kenney Interface Sounds (CC0)</div></div>
+        <button class="btn ghost small" onClick={() => { s.settings.sound = !s.settings.sound; bump(); }}>{s.settings.sound ? "켬" : "끔"}</button>
+      </div>
+      <div class="item">
         <div class="info"><div class="name">진동</div><div class="stat">탭과 구매할 때 짧게</div></div>
         <button class="btn ghost small" onClick={() => { s.settings.vibrate = !s.settings.vibrate; bump(); }}>{s.settings.vibrate ? "켬" : "끔"}</button>
       </div>
@@ -464,7 +468,7 @@ function SettingsView() {
       </div>
       <div class="section"><span>처음부터</span></div>
       <button class="btn red wide" onClick={() => { ui.modal = { kind: "confirm", text: "모든 진행이 사라진다. 정말 지울까?", ok: () => { ui.noSave = true; wipe(); location.reload(); } }; bump(); }}>데이터 삭제</button>
-      <div class="desc" style={{ marginTop: 16 }}>이펙트 엔진: pixelfx (MIT, patch-gg). 폰트: Galmuri (OFL).</div>
+      <div class="desc" style={{ marginTop: 16 }}>이펙트 엔진: pixelfx (MIT, patch-gg). 폰트: Galmuri (OFL). 효과음: Kenney (CC0, www.kenney.nl).</div>
     </>
   );
 }

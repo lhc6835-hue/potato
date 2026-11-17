@@ -6,7 +6,7 @@ export type Rarity = 0 | 1 | 2 | 3;
 export const RARITY_NAME = ["일반", "숙련", "장인", "전설"];
 export const RARITY_COLOR = ["#b8b0a4", "#7fc0e8", "#e8b84a", "#e87a5a"];
 
-export type SlotKind = "line" | "lift" | "counter";
+export type SlotKind = "line" | "lift" | "counter" | "porter";
 
 export interface TraitDef {
   id: string;
@@ -33,26 +33,26 @@ export interface TraitDef {
 }
 
 export const TRAITS: TraitDef[] = [
-  { id: "quiet", name: "말이 없다", desc: "효과 없음. 그냥 말이 없다." },
-  { id: "knife", name: "칼질 장인", desc: "라인 속도 +30%", slot: "line", speed: 1.3 },
-  { id: "oil", name: "기름 냄새를 좋아함", desc: "튀김 라인 속도 +50%", slot: "line", speed: 1.5, cat: "fried" },
-  { id: "masher", name: "팔힘이 세다", desc: "으깸 라인 속도 +60%", slot: "line", speed: 1.6, cat: "mashed" },
-  { id: "soupy", name: "국물에 진심", desc: "수프 라인 속도 +60%", slot: "line", speed: 1.6, cat: "soup" },
-  { id: "baker", name: "오븐 앞에서 평온함", desc: "오븐 라인 속도 +60%", slot: "line", speed: 1.6, cat: "oven" },
-  { id: "pan", name: "뒤집기 달인", desc: "부침 라인 속도 +60%", slot: "line", speed: 1.6, cat: "pan" },
-  { id: "sweet", name: "단 걸 좋아함", desc: "디저트 라인 속도 +60%", slot: "line", speed: 1.6, cat: "dessert" },
-  { id: "goguma", name: "고구마 그룹 출신", desc: "속도 +40%, 가끔 고구마를 섞는다 (판매가 -5%)", speed: 1.4, price: 0.95 },
-  { id: "morning", name: "아침형 인간", desc: "러시 때 +50%, 밤에는 -30%", rush: 1.5, night: 0.7 },
-  { id: "night", name: "올빼미", desc: "밤에 +60%", night: 1.6 },
-  { id: "strong", name: "어깨가 넓다", desc: "덤웨이터 운반량 +40%", slot: "lift", carry: 1.4 },
-  { id: "tetris", name: "테트리스 고수", desc: "덤웨이터 운반량 +70%", slot: "lift", carry: 1.7 },
-  { id: "smile", name: "웃는 연습 중", desc: "카운터 처리량 +30%. 아직 연습 중이다.", slot: "counter", serve: 1.3 },
+  { id: "steady", name: "성실함", desc: "효율 +10%", speed: 1.1, carry: 1.1, serve: 1.1 },
+  { id: "knife", name: "칼질이 빠르다", desc: "주방 속도 +30%", slot: "line", speed: 1.3 },
+  { id: "oil", name: "튀김 전문", desc: "튀김 주방 속도 +50%", slot: "line", speed: 1.5, cat: "fried" },
+  { id: "masher", name: "으깸 전문", desc: "으깸 주방 속도 +60%", slot: "line", speed: 1.6, cat: "mashed" },
+  { id: "soupy", name: "수프 전문", desc: "수프 주방 속도 +60%", slot: "line", speed: 1.6, cat: "soup" },
+  { id: "baker", name: "오븐 전문", desc: "오븐 주방 속도 +60%", slot: "line", speed: 1.6, cat: "oven" },
+  { id: "pan", name: "부침 전문", desc: "부침 주방 속도 +60%", slot: "line", speed: 1.6, cat: "pan" },
+  { id: "sweet", name: "디저트 전문", desc: "디저트 주방 속도 +60%", slot: "line", speed: 1.6, cat: "dessert" },
+  { id: "veteran", name: "경력직", desc: "효율 +40%, 판매가 -5%", speed: 1.4, carry: 1.4, serve: 1.4, price: 0.95 },
+  { id: "morning", name: "아침형", desc: "러시 때 +50%, 밤에는 -30%", rush: 1.5, night: 0.7 },
+  { id: "night", name: "야간형", desc: "밤에 +60%", night: 1.6 },
+  { id: "strong", name: "힘이 세다", desc: "운반량 +40% (창고·덤웨이터)", carry: 1.4 },
+  { id: "packer", name: "정리를 잘한다", desc: "덤웨이터 운반량 +70%", slot: "lift", carry: 1.7 },
+  { id: "runner", name: "계단을 잘 탄다", desc: "창고 운반량 +70%", slot: "porter", carry: 1.7 },
+  { id: "kind", name: "친절함", desc: "카운터 처리량 +30%", slot: "counter", serve: 1.3 },
   { id: "salesman", name: "말을 잘한다", desc: "판매가 +12%", slot: "counter", price: 1.12 },
-  { id: "polite", name: "인사를 두 번 한다", desc: "명성 회복 빠름", slot: "counter", fame: 1.6 },
-  { id: "fast", name: "걸음이 빠르다", desc: "효율 +25%", speed: 1.25, carry: 1.25, serve: 1.25 },
-  { id: "potatohead", name: "머리가 감자를 닮음", desc: "효율 +15%. 사장님이 좋아한다.", speed: 1.15, carry: 1.15, serve: 1.15 },
-  { id: "philosopher", name: "철학적이다", desc: "효율 +10%. 감자의 본질에 대해 자주 말한다.", speed: 1.1, carry: 1.1, serve: 1.1 },
-  { id: "overtime", name: "야근을 즐긴다", desc: "효율 +35%. 걱정된다.", speed: 1.35, carry: 1.35, serve: 1.35 },
+  { id: "polite", name: "예의 바르다", desc: "별점이 빨리 오른다", slot: "counter", fame: 1.6 },
+  { id: "fast", name: "손이 빠르다", desc: "효율 +25%", speed: 1.25, carry: 1.25, serve: 1.25 },
+  { id: "careful", name: "꼼꼼함", desc: "효율 +15%", speed: 1.15, carry: 1.15, serve: 1.15 },
+  { id: "tireless", name: "체력이 좋다", desc: "효율 +35%", speed: 1.35, carry: 1.35, serve: 1.35 },
 ];
 export const TRAIT: Record<string, TraitDef> = Object.fromEntries(TRAITS.map((t) => [t.id, t]));
 

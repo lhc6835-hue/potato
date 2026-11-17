@@ -21,7 +21,10 @@ export function load(): GameState | null {
   try {
     const t = localStorage.getItem(KEY);
     if (!t) return null;
-    return migrate(JSON.parse(t));
+    const raw = JSON.parse(t);
+    // v1 세이브는 게임 구조가 달라서 이어 할 수 없다 (처음부터 시작)
+    if (!raw || raw.v !== 2) return null;
+    return migrate(raw);
   } catch {
     return null;
   }

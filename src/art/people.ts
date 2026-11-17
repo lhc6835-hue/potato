@@ -175,3 +175,22 @@ export const PORTRAITS: Record<string, { rows: string[]; pal: Record<string, str
     pal: { h: "#5a4a3a", s: "#ecc8a8", e: "#2a2220", g: "#d8b040", m: "#b08070", k: "#2a2a3a", w: "#f4f4f0", r: "#a83a32" },
   },
 };
+
+// ---- 박감자 사장 (플레이어): 감자처럼 둥근 머리, 콧수염, 정장과 빨간 넥타이
+
+const BOSS_HEAD = ["..bbbb..", ".bbbbbb.", ".bbbBbb.", ".bebbeb.", ".bbbbbb.", ".bMMMMb.", "..bbbb..", "...bb..."];
+
+export function bossRows(pose: Pose) {
+  const key = `boss|${pose}`;
+  let r = cache.get(key);
+  if (r) return r;
+  const body = BODIES[pose].map((l, i) => (i <= 2 ? l.slice(0, 3) + "tt" + l.slice(5) : l));
+  r = [...BOSS_HEAD, ...body];
+  cache.set(key, r);
+  return r;
+}
+
+export const BOSS_PAL = {
+  b: "#c8945a", B: "#a87440", e: "#2a2220", M: "#4a321e", s: "#c8945a",
+  c: "#3a3a4a", d: "#2e2e3c", p: "#2e2e3a", k: "#1e1a1a", t: "#c83a32",
+};

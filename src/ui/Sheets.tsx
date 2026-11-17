@@ -9,6 +9,7 @@ import { featureOn, CHAPTERS, LAST_CHAPTER } from "../data/story";
 import * as E from "../sim/econ";
 import * as G from "../sim/game";
 import { fmt, won, pct, cnt } from "../util/format";
+import { bossCarry } from "../sim/boss";
 import type { BranchState } from "../sim/state";
 
 export function Sheets() {
@@ -32,11 +33,11 @@ export function Sheets() {
 
 // ---------------------------------------------------------------- 매니저 자리
 
-function ManagerSlot({ b, slot, line, id }: { b: BranchState; slot: "line" | "lift" | "counter"; line: number; id: number | null }) {
+function ManagerSlot({ b, slot, line, id }: { b: BranchState; slot: "line" | "lift" | "counter" | "porter"; line: number; id: number | null }) {
   const s = ui.s;
   if (!featureOn(s, "managers")) return null;
   const m = E.managerOf(s, id);
-  const hint = slot === "line" ? "매니저가 있으면 자동으로 조리한다" : slot === "lift" ? "매니저가 있으면 덤웨이터가 두 배 빠르다" : "매니저가 있으면 손님 응대가 빨라진다";
+  const hint = slot === "line" ? "조리 매니저가 있으면 사장 없이도 계속 조리한다" : slot === "lift" ? "덤웨이터 매니저가 있으면 음식을 알아서 내린다" : slot === "porter" ? "운반 매니저가 있으면 감자를 알아서 주방으로 나른다" : "카운터 매니저가 있으면 손님 응대가 빨라진다";
   return (
     <>
       <div class="section"><span>매니저</span></div>
@@ -71,12 +72,12 @@ function LineSheet({ b, i }: { b: BranchState; i: number }) {
   const roles = ["손질", "조리", "마무리"];
   const others = G.buildableMenus(s, b);
   return (
-    <Sheet title={<>{m.name} <span class="muted" style={{ fontSize: 11 }}>{i + 2}층 · {CATEGORY_NAME[m.cat]}</span></>} sub={m.desc}>
+    <Sheet title={<>{m.name} <span class="muted" style={{ fontSize: 11 }}>{i + 1}층 · {CATEGORY_NAME[m.cat]}</span></>} sub={m.desc}>
       <div class="item">
         <div class="ico"><FoodIcon id={m.id} /></div>
         <div class="info">
           <div class="stat">생산 <b class="acc">{fmt(rate)}</b>개/초 · 판매가 {won(E.salePrice(s, b, m))}</div>
-          <div class="stat">트레이 {cnt(l.tray)} · 진열 {cnt(b.stock[l.menu] ?? 0)} · 감자 {fmt(E.potatoesPer(s, m))}개 사용</div>
+          <div class="stat">감자 통 {cnt(l.bin)}/{cnt(E.binCap(s, b, l))} · {i > 0 ? `트레이 ${cnt(l.tray)} · ` : ""}진열 {cnt(b.stock[l.menu] ?? 0)} · 1개에 감자 {fmt(E.potatoesPer(s, m))}개</div>
         </div>
       </div>
       <div class="section"><span>스테이션 — 가장 느린 곳이 속도를 정한다</span></div>
@@ -210,11 +211,11 @@ function LiftSheet({ b }: { b: BranchState }) {
   const prod = b.lines.reduce((a, l) => a + E.lineRate(s, b, l), 0);
   const rate = E.liftRate(s, b);
   return (
-    <Sheet title="덤웨이터" sub="주방에서 만든 음식을 1층 카운터로 나른다. 비싼 메뉴부터 싣는다.">
+    <Sheet title="덤웨이터" sub="위층 주방에서 만든 음식을 1층 카운터로 내린다. 매니저가 없으면 덤웨이터를 눌러서 한 번씩 보내야 한다.">
       <div class="item">
         <div class="info">
           <div class="stat">운반 <b class="acc">{fmt(rate)}</b>개/초 · 주방 생산 {fmt(prod)}개/초</div>
-          <div class="stat">한 번에 {fmt(E.liftCapacity(s, b))}개 · 왕복 {E.liftTrip(b).toFixed(1)}초 {b.lift.manager === null ? "(매니저 없음: 2배 느림, 누르면 한 번 빨라짐)" : ""}</div>
+          <div class="stat">한 번에 {fmt(E.liftCapacity(s, b))}개 · 왕복 {E.liftTrip(b).toFixed(1)}초 {b.lift.manager === null ? "· 수동 운행" : "· 자동 운행"}</div>
           <Bar v={prod > 0 ? Math.min(1, rate / prod) : 1} green />
           {rate < prod * 0.9 && <div class="stat bad" style={{ marginTop: 4 }}>덤웨이터가 병목이다. 트레이에 음식이 쌓인다.</div>}
         </div>
@@ -240,7 +241,7 @@ function StorageSheet({ b }: { b: BranchState }) {
   const use = b.lines.reduce((a, l) => a + E.lineRate(s, b, l) * E.potatoesPer(s, MENU[l.menu]), 0);
   const sup = E.supplyRate(s, b);
   return (
-    <Sheet title="지하 창고" sub="감자를 사서 보관한다. 감자가 떨어지면 주방이 멈춘다.">
+    <Sheet title="지하 창고" sub="납품 트럭이 감자를 채운다. 주방까지는 사장이 직접 들고 가거나, 운반 매니저가 나른다.">
       <div class="item">
         <div class="ico"><PotatoIcon /></div>
         <div class="info">
@@ -254,11 +255,18 @@ function StorageSheet({ b }: { b: BranchState }) {
       <div style={{ display: "flex", justifyContent: "flex-end", margin: "8px 0 7px" }}><BuyMode /></div>
       <div class="item">
         <div class="info">
-          <div class="name">납품 계약 <span class="lv">Lv {b.supply.lv}</span></div>
-          <div class="stat">입고량·보관량 증가 · 다음 ×2 까지 {E.nextMilestone(b.supply.lv) - b.supply.lv}레벨</div>
+          <div class="name">창고 <span class="lv">Lv {b.supply.lv}</span></div>
+          <div class="stat">납품량·보관량·운반량 증가 · 다음 ×2 까지 {E.nextMilestone(b.supply.lv) - b.supply.lv}레벨</div>
         </div>
         <BuyBtn cost={cost} n={n} onBuy={() => G.upgrade(s, b, { kind: "supply" })} />
       </div>
+      <div class="item">
+        <div class="info">
+          {b.id === "b0" && <div class="stat">사장이 한 번에 드는 감자 {fmt(bossCarry(s, b))}개</div>}
+          <div class="stat">운반 {b.supply.manager !== null ? `${fmt(E.porterRate(s, b))}개/초 (자동)` : b.staff ? `${fmt(E.porterRate(s, b))}개/초 (기본 직원)` : "수동: 창고를 누르면 사장이 나른다"}</div>
+        </div>
+      </div>
+      <ManagerSlot b={b} slot="porter" line={0} id={b.supply.manager} />
     </Sheet>
   );
 }
@@ -275,7 +283,7 @@ function RoofSheet({ b }: { b: BranchState }) {
         <div class="item">
           <div class="info">
             <div class="name">건물 증축 <span class="lv">{b.maxLines + 1}/{max + 1}층</span></div>
-            <div class="stat">주방 라인을 지을 층이 하나 늘어난다.</div>
+            <div class="stat">주방 라인을 지을 층이 하나 늘어난다. 2층부터는 덤웨이터로 음식을 내려야 한다.</div>
           </div>
           <BuyBtn cost={b.maxLines >= max ? Infinity : E.floorCost(b)} label="증축" onBuy={() => { if (G.addFloor(s, b)) { toast("한 층 올렸다", true); ui.scene.focusFloor(b.maxLines - 1); } }} />
         </div>
@@ -292,7 +300,7 @@ function GoalsSheet() {
   const s = ui.s;
   if (s.chapter > LAST_CHAPTER) {
     return (
-      <Sheet title="감자는 끝나지 않는다" sub="엔딩 이후">
+      <Sheet title="엔딩 이후" sub="계속 플레이">
         <div class="desc">지도 끝의 신시장, 브랜드 리부트, 도감과 업적이 기다리고 있다.</div>
         <div class="item"><div class="info"><div class="name">신시장 개척</div><div class="stat">최고 {s.bestMarket}곳</div></div></div>
       </Sheet>
@@ -363,11 +371,11 @@ export function startChapterIntro() {
 
 // ---------------------------------------------------------------- 매니저 배치
 
-function AssignSheet({ b, slot, line }: { b: BranchState; slot: "line" | "lift" | "counter"; line: number }) {
+function AssignSheet({ b, slot, line }: { b: BranchState; slot: "line" | "lift" | "counter" | "porter"; line: number }) {
   const s = ui.s;
-  const current = slot === "line" ? b.lines[line]?.manager : slot === "lift" ? b.lift.manager : b.counter.manager;
+  const current = G.slotHolder(b, slot, line);
   const list = [...s.managers].sort((x, y) => (x.at ? 1 : 0) - (y.at ? 1 : 0) || y.data.power - x.data.power);
-  const back = () => openSheet(slot === "line" ? { kind: "line", i: line } : slot === "lift" ? { kind: "lift" } : { kind: "hall" });
+  const back = () => openSheet(slot === "line" ? { kind: "line", i: line } : slot === "lift" ? { kind: "lift" } : slot === "porter" ? { kind: "storage" } : { kind: "hall" });
   return (
     <Sheet title="매니저 배치" sub="다른 곳에서 일하던 매니저를 데려오면 그 자리는 빈다.">
       {current !== null && current !== undefined && (
@@ -376,7 +384,7 @@ function AssignSheet({ b, slot, line }: { b: BranchState; slot: "line" | "lift" 
       {!list.length && <div class="list-empty">고용한 매니저가 없다. 아래 '직원' 탭에서 고용하자.</div>}
       {list.map((m) => {
         const where = m.at ? s.branches.find((x) => x.id === m.at!.branch) : null;
-        const whereText = m.at && where ? `${regionById(where.region).name} ${m.at.slot === "line" ? (where.lines[m.at.line] ? MENU[where.lines[m.at.line].menu].name : "") : m.at.slot === "lift" ? "덤웨이터" : "카운터"}` : "대기 중";
+        const whereText = m.at && where ? `${regionById(where.region).name} ${m.at.slot === "line" ? (where.lines[m.at.line] ? MENU[where.lines[m.at.line].menu].name : "") : m.at.slot === "lift" ? "덤웨이터" : m.at.slot === "porter" ? "창고 운반" : "카운터"}` : "대기 중";
         const fit = traitsOf(m.data).filter((t) => !t.slot || t.slot === slot);
         return (
           <div class="item" style={{ cursor: "pointer", opacity: m.data.id === current ? 0.5 : 1 }} onClick={() => { G.assign(s, m.data.id, b, slot, line); back(); }}>

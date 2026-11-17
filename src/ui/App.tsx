@@ -13,6 +13,7 @@ import * as E from "../sim/econ";
 import * as G from "../sim/game";
 import { bus } from "../sim/bus";
 import { save } from "../sim/save";
+import { sfx, unlockAudio, setSfxEnabled } from "../sfx";
 import { fmt, won, duration, cnt } from "../util/format";
 
 
@@ -61,7 +62,25 @@ export function App() {
 
   // 알림
   useEffect(() => {
+    setSfxEnabled(() => ui.s.settings.sound);
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock);
     const offs = [
+      () => window.removeEventListener("pointerdown", unlock),
+      bus.on("sfx", (n) => sfx(n)),
+      bus.on("toast", (t) => toast(t)),
+      bus.on("upgrade", (d) => d.milestone && d.branch === G.activeBranch(ui.s).id && sfx("milestone")),
+      bus.on("build", () => sfx("build")),
+      bus.on("floor", () => sfx("build")),
+      bus.on("hire", () => sfx("hire")),
+      bus.on("goal", () => sfx("goal")),
+      bus.on("achievement", () => sfx("achieve")),
+      bus.on("chapter", () => sfx("chapter")),
+      bus.on("discover", () => sfx("achieve")),
+      bus.on("orderDone", () => sfx("goal")),
+      bus.on("orderFail", () => sfx("bad")),
+      bus.on("branch", () => sfx("build")),
+      bus.on("event", (e) => sfx(EVENT[e.id].good ? "good" : "bad")),
       bus.on("achievement", (a) => toast(`🏆 업적: ${a.name}`, true)),
       bus.on("goal", (g) => {
         toast(`✅ ${g.text}`);
@@ -74,8 +93,8 @@ export function App() {
       }),
       bus.on("order", (o) => toast(`📦 특별 주문: ${MENU[o.menu].name} ${fmt(o.need)}개`, true)),
       bus.on("orderDone", (o) => toast(`📦 주문 완료! +${won(o.reward)}`, true)),
-      bus.on("orderFail", () => toast("📦 주문 시간 초과. 손님이 조용히 돌아갔다.")),
-      bus.on("rivalDefeated", () => toast("고구마 그룹이 이 동네에서 철수했다. 고회장이 감자튀김을 사 갔다.", true)),
+      bus.on("orderFail", () => toast("📦 주문 시간 초과.")),
+      bus.on("rivalDefeated", () => toast("고구마 그룹이 이 동네에서 철수했다.", true)),
       bus.on("hire", () => featureOn(ui.s, "managers") && ui.s.managers.length === 1 && toast("매니저를 라인에 배치하면 자동으로 조리한다. 라인 이름표를 눌러 보자.")),
     ];
     return () => offs.forEach((f) => f());
@@ -269,6 +288,7 @@ function Dialog() {
   if (!ui.dialog.length) return null;
   const [who, text] = ui.dialog[0];
   const next = () => {
+    sfx("next");
     ui.dialog = ui.dialog.slice(1);
     if (!ui.dialog.length) finishDialog();
     else bump();
@@ -329,7 +349,7 @@ function Modal() {
           <h3>감자 주식회사</h3>
           <div class="big">— 끝 —</div>
           <div class="desc">플레이 시간 {duration(ui.s.played)}<br />누적 매출 {won(ui.s.earnedAll)}<br />분점 {ui.s.branches.length}개 · 매니저 {ui.s.managers.length}명</div>
-          <div class="desc acc">지도 끝에 신시장이 열렸다. 감자는 끝나지 않는다.</div>
+          <div class="desc acc">지도에 신시장이 열렸다. 리부트, 신시장, 도감으로 계속 플레이할 수 있다.</div>
           <button class="btn wide">계속하기</button>
         </div>
       </div>

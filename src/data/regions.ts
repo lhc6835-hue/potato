@@ -23,14 +23,14 @@ export interface DistrictDef {
 }
 
 export const DISTRICTS: Record<DistrictKind, DistrictDef> = {
-  home: { name: "본점", desc: "모든 것이 시작된 곳. 특별한 건 없다.", traffic: 1, price: 1, elastic: 1, lunch: 1, dinner: 1, likes: [], rent: 1 },
-  campus: { name: "대학가", desc: "싸면 많이 팔린다. 비싸면 안 팔린다. 정직하다.", traffic: 1.4, price: 0.85, elastic: 1.8, lunch: 1.2, dinner: 1.3, likes: ["fried", "basic"], rent: 0.8 },
-  office: { name: "오피스", desc: "점심에 전쟁이 난다. 저녁엔 다들 퇴근했다.", traffic: 1.0, price: 1.1, elastic: 1.0, lunch: 2.2, dinner: 0.6, likes: ["soup", "burger", "salad"], rent: 1.3 },
-  tourist: { name: "관광지", desc: "비싸도 산다. 사진 찍고 나서 먹는다.", traffic: 1.1, price: 1.5, elastic: 0.5, lunch: 1.2, dinner: 1.2, likes: ["fried", "dessert", "premium"], rent: 1.6 },
-  residential: { name: "주택가", desc: "단골이 많다. 단골은 말이 많다.", traffic: 0.9, price: 1.0, elastic: 1.0, lunch: 1.0, dinner: 1.6, likes: ["braised", "soup", "pan"], rent: 0.9 },
-  station: { name: "역세권", desc: "손님이 많고 빠르게 지나간다. 앉을 생각이 없다.", traffic: 1.7, price: 0.95, elastic: 1.2, lunch: 1.4, dinner: 1.4, likes: ["fried", "burger", "basic"], rent: 1.4 },
-  airport: { name: "공항", desc: "모든 게 비싸다. 손님도 그걸 안다.", traffic: 1.2, price: 1.8, elastic: 0.3, lunch: 1.1, dinner: 1.1, likes: ["premium", "oven", "mashed"], rent: 2.5 },
-  market: { name: "전통시장", desc: "부침개 냄새에 이끌려 온다. 흥정을 시도한다.", traffic: 1.3, price: 0.9, elastic: 1.3, lunch: 1.3, dinner: 1.1, likes: ["pan", "braised", "basic"], rent: 0.9 },
+  home: { name: "본점", desc: "처음 문을 연 가게.", traffic: 1, price: 1, elastic: 1, lunch: 1, dinner: 1, likes: [], rent: 1 },
+  campus: { name: "대학가", desc: "손님이 많고 가격에 민감하다.", traffic: 1.4, price: 0.85, elastic: 1.8, lunch: 1.2, dinner: 1.3, likes: ["fried", "basic"], rent: 0.8 },
+  office: { name: "오피스", desc: "점심에 손님이 몰리고 저녁엔 한산하다.", traffic: 1.0, price: 1.1, elastic: 1.0, lunch: 2.2, dinner: 0.6, likes: ["soup", "burger", "salad"], rent: 1.3 },
+  tourist: { name: "관광지", desc: "비싸도 잘 팔린다.", traffic: 1.1, price: 1.5, elastic: 0.5, lunch: 1.2, dinner: 1.2, likes: ["fried", "dessert", "premium"], rent: 1.6 },
+  residential: { name: "주택가", desc: "단골이 많고 저녁 손님이 많다.", traffic: 0.9, price: 1.0, elastic: 1.0, lunch: 1.0, dinner: 1.6, likes: ["braised", "soup", "pan"], rent: 0.9 },
+  station: { name: "역세권", desc: "유동 인구가 많다.", traffic: 1.7, price: 0.95, elastic: 1.2, lunch: 1.4, dinner: 1.4, likes: ["fried", "burger", "basic"], rent: 1.4 },
+  airport: { name: "공항", desc: "가격을 높게 받아도 손님이 줄지 않는다. 임대료가 비싸다.", traffic: 1.2, price: 1.8, elastic: 0.3, lunch: 1.1, dinner: 1.1, likes: ["premium", "oven", "mashed"], rent: 2.5 },
+  market: { name: "전통시장", desc: "부침과 조림이 잘 팔린다.", traffic: 1.3, price: 0.9, elastic: 1.3, lunch: 1.3, dinner: 1.1, likes: ["pan", "braised", "basic"], rent: 0.9 },
 };
 
 export interface RegionDef {
@@ -52,20 +52,20 @@ export interface RegionDef {
 }
 
 export const REGIONS: RegionDef[] = [
-  { id: "gamja-dong", name: "감자동", tier: 0, mult: 1, chapter: 1, slots: ["home", "residential", "market"], desc: "감자처럼 생긴 동네. 위에서 보면 진짜 감자 모양이다." },
-  { id: "gamja-si", name: "감자시", tier: 1, mult: 8, chapter: 5, slots: ["campus", "office", "station", "tourist", "residential", "market"], desc: "감자동이 속한 도시. 시청 앞에 감자 동상이 있다. 우리가 세운 게 아니다." },
-  { id: "seoul", name: "서울", tier: 2, mult: 120, chapter: 8, slots: ["office", "station", "campus", "tourist", "airport", "residential"], likes: ["burger", "dessert"], desc: "모든 게 빠르다. 감자튀김도 빨리 식는다." },
-  { id: "busan", name: "부산", tier: 2, mult: 260, chapter: 8, slots: ["tourist", "market", "station", "residential", "office"], likes: ["soup", "pan"], desc: "바다가 보이는 감자집. 손님들이 감자를 회처럼 먹을 수 있냐고 묻는다." },
-  { id: "gangwon", name: "강원", tier: 2, mult: 560, chapter: 8, slots: ["tourist", "market", "residential", "home"], likes: ["basic", "pan", "braised"], desc: "감자의 고향. 여기서 감자를 파는 건 일종의 도전이다." },
-  { id: "daegu", name: "대구", tier: 2, mult: 1200, chapter: 8, slots: ["campus", "market", "office", "station", "residential"], likes: ["fried", "braised"], desc: "덥다. 감자 아이스크림 반응이 좋다." },
-  { id: "jeju", name: "제주", tier: 2, mult: 2600, chapter: 8, slots: ["tourist", "airport", "residential", "market"], likes: ["dessert", "premium"], desc: "관광객이 감자 모양 기념품을 산다. 우리 것이 아니다." },
-  { id: "ca", name: "캐나다", tier: 3, mult: 9e3, chapter: 9, localMenu: "poutine", flag: "🇨🇦", slots: ["station", "tourist", "residential", "campus"], likes: ["fried", "soup"], desc: "푸틴의 나라. 감자튀김에 소스를 부어야 예의다." },
-  { id: "ch", name: "스위스", tier: 3, mult: 3e4, chapter: 9, localMenu: "raclette", flag: "🇨🇭", slots: ["tourist", "airport", "residential"], likes: ["oven", "premium", "pan"], desc: "치즈와 감자, 그리고 시계. 배달이 1초도 늦지 않는다." },
-  { id: "es", name: "스페인", tier: 3, mult: 1e5, chapter: 9, localMenu: "bravas", flag: "🇪🇸", slots: ["tourist", "market", "station", "residential"], likes: ["fried", "pan"], desc: "저녁을 밤 10시에 먹는다. 저녁 러시가 늦게 온다." },
-  { id: "in", name: "인도", tier: 3, mult: 3.4e5, chapter: 9, localMenu: "aloogobi", flag: "🇮🇳", slots: ["market", "station", "campus", "residential", "office"], likes: ["braised", "soup"], desc: "감자를 알루라고 부른다. 우리 회사는 이제 알루 주식회사다." },
-  { id: "us", name: "미국", tier: 3, mult: 1.2e6, chapter: 10, flag: "🇺🇸", slots: ["airport", "office", "station", "tourist", "campus"], likes: ["fried", "burger", "mashed"], desc: "모든 사이즈가 라지다. 스몰을 시키면 라지가 나온다." },
-  { id: "fr", name: "프랑스", tier: 3, mult: 4e6, chapter: 10, flag: "🇫🇷", slots: ["tourist", "residential", "market", "office"], likes: ["soup", "mashed", "premium"], desc: "프렌치 프라이가 프랑스 음식이냐고 물었다가 혼났다." },
-  { id: "pe", name: "페루", tier: 3, mult: 1.4e7, chapter: 10, flag: "🇵🇪", slots: ["market", "tourist", "residential"], likes: ["basic", "braised", "salad"], desc: "감자 품종이 4천 종인 나라. 우리 품종 도감이 부끄럽다." },
+  { id: "gamja-dong", name: "감자동", tier: 0, mult: 1, chapter: 1, slots: ["home", "residential", "market"], desc: "첫 가게가 있는 동네." },
+  { id: "gamja-si", name: "감자시", tier: 1, mult: 8, chapter: 6, slots: ["campus", "office", "station", "tourist", "residential", "market"], desc: "감자동이 속한 도시. 상권이 다양하다." },
+  { id: "seoul", name: "서울", tier: 2, mult: 120, chapter: 9, slots: ["office", "station", "campus", "tourist", "airport", "residential"], likes: ["burger", "dessert"], desc: "가장 큰 시장. 버거와 디저트가 인기다." },
+  { id: "busan", name: "부산", tier: 2, mult: 260, chapter: 9, slots: ["tourist", "market", "station", "residential", "office"], likes: ["soup", "pan"], desc: "관광객이 많다. 수프와 부침이 인기다." },
+  { id: "gangwon", name: "강원", tier: 2, mult: 560, chapter: 9, slots: ["tourist", "market", "residential", "home"], likes: ["basic", "pan", "braised"], desc: "감자 산지. 기본 메뉴와 부침, 조림이 인기다." },
+  { id: "daegu", name: "대구", tier: 2, mult: 1200, chapter: 9, slots: ["campus", "market", "office", "station", "residential"], likes: ["fried", "braised"], desc: "튀김과 조림이 인기다." },
+  { id: "jeju", name: "제주", tier: 2, mult: 2600, chapter: 9, slots: ["tourist", "airport", "residential", "market"], likes: ["dessert", "premium"], desc: "관광객이 많다. 디저트와 프리미엄 메뉴가 인기다." },
+  { id: "ca", name: "캐나다", tier: 3, mult: 9e3, chapter: 10, localMenu: "poutine", flag: "🇨🇦", slots: ["station", "tourist", "residential", "campus"], likes: ["fried", "soup"], desc: "푸틴의 나라. 튀김과 수프가 인기다." },
+  { id: "ch", name: "스위스", tier: 3, mult: 3e4, chapter: 10, localMenu: "raclette", flag: "🇨🇭", slots: ["tourist", "airport", "residential"], likes: ["oven", "premium", "pan"], desc: "라클렛의 나라. 오븐 요리가 인기다." },
+  { id: "es", name: "스페인", tier: 3, mult: 1e5, chapter: 10, localMenu: "bravas", flag: "🇪🇸", slots: ["tourist", "market", "station", "residential"], likes: ["fried", "pan"], desc: "파타타스 브라바스의 나라. 튀김과 부침이 인기다." },
+  { id: "in", name: "인도", tier: 3, mult: 3.4e5, chapter: 10, localMenu: "aloogobi", flag: "🇮🇳", slots: ["market", "station", "campus", "residential", "office"], likes: ["braised", "soup"], desc: "알루 고비의 나라. 조림과 수프가 인기다." },
+  { id: "us", name: "미국", tier: 3, mult: 1.2e6, chapter: 11, flag: "🇺🇸", slots: ["airport", "office", "station", "tourist", "campus"], likes: ["fried", "burger", "mashed"], desc: "큰 시장. 튀김, 버거, 으깸이 인기다." },
+  { id: "fr", name: "프랑스", tier: 3, mult: 4e6, chapter: 11, flag: "🇫🇷", slots: ["tourist", "residential", "market", "office"], likes: ["soup", "mashed", "premium"], desc: "수프와 으깸, 프리미엄 메뉴가 인기다." },
+  { id: "pe", name: "페루", tier: 3, mult: 1.4e7, chapter: 11, flag: "🇵🇪", slots: ["market", "tourist", "residential"], likes: ["basic", "braised", "salad"], desc: "감자의 원산지. 기본 메뉴와 샐러드가 인기다." },
 ];
 
 export const REGION: Record<string, RegionDef> = Object.fromEntries(REGIONS.map((r) => [r.id, r]));
@@ -92,12 +92,8 @@ export function newMarket(n: number): RegionDef {
   const slots: DistrictKind[] = [];
   for (let i = 0; i < count; i++) slots.push(NM_KINDS[hash(h + i) % NM_KINDS.length]);
   const likes = [ALL_CATS[(h >>> 4) % ALL_CATS.length], ALL_CATS[(h >>> 10) % ALL_CATS.length]];
-  const desc = base === "달" ? "중력이 약해서 감자튀김이 떠다닌다. 손님은 그걸 잡아서 먹는다."
-    : base === "화성" ? "감자를 키울 수 있다는 걸 영화에서 봤다. 진짜였다."
-    : base === "해저도시" ? "튀김기 사용 허가를 받는 데 3년 걸렸다."
-    : base === "구름섬" ? "배달은 낙하산으로 한다. 반품은 받지 않는다."
-    : "지도에 없던 곳. 감자 수요는 있다. 언제나 있다.";
-  return { id: `nm-${n}`, name, tier: 4, mult: 5e7 * Math.pow(4, n), chapter: 11, slots, likes, flag: "🌐", desc };
+  const desc = "새로 열린 시장. 갈수록 규모가 커진다.";
+  return { id: `nm-${n}`, name, tier: 4, mult: 5e7 * Math.pow(4, n), chapter: 12, slots, likes, flag: "🌐", desc };
 }
 
 export function regionById(id: string): RegionDef {
