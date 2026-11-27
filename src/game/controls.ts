@@ -68,7 +68,8 @@ class TapCtl implements Controller {
   constructor(public w: WeaponDef) {}
   down(x: number, y: number) {
     const b = G.bag;
-    const [tx, ty] = live() ? b.aimPoint(x, y) : [x, y];
+    // 샌드백이 없을 때(부서진 직후·떨어지는 중)는 클릭한 곳이 아니라 샌드백이 매달릴 자리로 허공 잽
+    const [tx, ty] = live() ? b.aimPoint(x, y) : [this.hx, this.hy];
     // 쉬고 있는 손을 먼저 쓰고, 둘 다 바쁘면 더 많이 돌아온 손을 쓴다
     const busy = (s: number) => this.punches.find((q) => q.side === s);
     const a = busy(-this.side), b2 = busy(this.side);
@@ -90,9 +91,18 @@ class TapCtl implements Controller {
   move() {}
   up() {}
   /** 가드 자세의 주먹 위치: 샌드백 아래 양옆 */
+  /** 가드 기준점: 샌드백 중심을 부드럽게 따라간다. 샌드백이 없으면 매달릴 자리(고리 아래 몸통 중심)에 머문다 */
+  hx = NaN;
+  hy = NaN;
+  home(): [number, number] {
+    const b = G.bag;
+    if (live()) return b.center();
+    if (b) return [b.ax, b.ay + b.L + b.geo.cy];
+    return [G.W / 2, G.H * 0.45];
+  }
   rest(side: number): [number, number] {
-    const [cx, cy] = live() ? G.bag.center() : [G.W / 2, G.H * 0.45];
-    return [cx + side * 34, Math.min(G.floorY - 6, cy + 30) + Math.sin(this.t * 3 + side) * 1.5];
+    if (isNaN(this.hx)) [this.hx, this.hy] = this.home();
+    return [this.hx + side * 34, Math.min(G.floorY - 6, this.hy + 30) + Math.sin(this.t * 3 + side) * 1.5];
   }
   restAngle(side: number) { return side < 0 ? -0.75 : -2.39; }
   strike(q: TapCtl["punches"][0]) {
@@ -117,6 +127,11 @@ class TapCtl implements Controller {
   }
   update(dt: number) {
     this.t += dt;
+    const [gx, gy] = this.home();
+    if (isNaN(this.hx)) [this.hx, this.hy] = [gx, gy];
+    const k = Math.min(1, dt * 10);
+    this.hx += (gx - this.hx) * k;
+    this.hy += (gy - this.hy) * k;
     for (let i = this.punches.length - 1; i >= 0; i--) {
       const q = this.punches[i];
       q.t += dt;
