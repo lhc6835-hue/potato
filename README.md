@@ -34,8 +34,9 @@
   엔진 코어(MIT, `src/vendor/pixelfx`)만 쓴다. 각 이펙트는 pixelfx 형식(`meta` + `create`)이라 pixelfx 도구로 렌더·검사할 수 있다.
 - 소리는 [Kenney](https://kenney.nl) CC0 오디오 팩(Impact Sounds, RPG Audio, Interface Sounds, Sci-fi Sounds, Digital Audio,
   Casino Audio, UI Audio, Music Jingles)에서 골라 모노 mp3로 바꿔 `src/sfx`에 넣었다. 변형 여러 개 중 무작위로 고르고 음높이·볼륨을
-  살짝 흔들며, 주먹 소리 + 샌드백 재질 소리처럼 층으로 쌓아 타격감을 낸다. 배경음 루프는 Kenney 팩에 없어서 쓰지 않고,
-  피버·보스·지역 이동 때 Kenney 징글을 튼다. 폰트: Galmuri (OFL).
+  살짝 흔들며, 주먹 소리 + 샌드백 재질 소리처럼 층으로 쌓아 타격감을 낸다. 거친 전자음·8비트 소리는 쓰지 않고,
+  이벤트 징글은 피치카토·스틸 드럼. 배경음은 Kenney 팩에 루프가 없어서 판타지 RPG 곡 4개(마을·모험·하늘·마왕성)를
+  직접 작곡해 렌더했다 (`tools/compose.cjs` → `src/sfx/bgm_*.mp3`, 하프·플루트·현악·종·북을 합성, 잔향 포함, 이음매 없는 루프). 폰트: Galmuri (OFL).
 
 ## 실행
 
