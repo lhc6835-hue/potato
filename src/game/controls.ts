@@ -31,6 +31,8 @@ export interface Controller {
   draw(p: Painter): void;
   hint?(p: Painter, t: number, a: number): void;
   hud?(): Hud | null;
+  /** 개발용: 화면에 그려지는 무기의 주요 점들 [x, y, 각도] */
+  probe?(): number[][];
   dispose?(): void;
 }
 
@@ -43,6 +45,35 @@ const HAND = ["..##....", ".#ww#...", ".#ww#...", ".#ww###.", "##wwwww#", "#wwww
 function hand(p: Painter, x: number, y: number, press: boolean, a: number) {
   p.sprite(HAND, { "#": "#1a1018", w: press ? "#ffe0b0" : "#ffffff" }, Math.round(x - 2), Math.round(y - (press ? 0 : 1)), { a });
   if (press) p.ring(x + 0.5, y, 5, 1, hex("#ffffff"), a * 0.7);
+}
+
+/** 각도 차이를 -π..π로 */
+const angDiff = (a: number, b: number) => { let d = b - a; d -= Math.round(d / TAU) * TAU; return d; };
+/** 무기 그림의 자세(위치·각도)를 목표 쪽으로 부드럽게 옮긴다: 순간이동 방지 */
+class Pose {
+  x = NaN; y = NaN; a = 0;
+  to(x: number, y: number, a: number, dt: number, rate: number) {
+    if (isNaN(this.x)) { this.x = x; this.y = y; this.a = a; return; }
+    const k = 1 - Math.exp(-rate * dt);
+    this.x += (x - this.x) * k; this.y += (y - this.y) * k; this.a += angDiff(this.a, a) * k;
+  }
+}
+/** 샌드백 기준점: 샌드백 중심을 부드럽게 따라가고, 부서졌거나 떨어지는 중이면 매달릴 자리에 머문다 */
+class Home {
+  x = NaN; y = NaN;
+  target(): [number, number] {
+    const b = G.bag;
+    if (live()) return b.center();
+    if (b) return [b.ax, b.ay + b.L + b.geo.cy];
+    return [G.W / 2, G.H * 0.45];
+  }
+  update(dt: number) {
+    const [x, y] = this.target();
+    if (isNaN(this.x)) { this.x = x; this.y = y; return; }
+    const k = 1 - Math.exp(-10 * dt);
+    this.x += (x - this.x) * k; this.y += (y - this.y) * k;
+  }
+  get(): [number, number] { if (isNaN(this.x)) this.update(0); return [this.x, this.y]; }
 }
 
 class Sampler {
@@ -105,6 +136,7 @@ class TapCtl implements Controller {
     return [this.hx + side * 34, Math.min(G.floorY - 6, this.hy + 30) + Math.sin(this.t * 3 + side) * 1.5];
   }
   restAngle(side: number) { return side < 0 ? -0.75 : -2.39; }
+  probe() { return [-1, 1].map((s) => { const q = this.punches.find((x) => x.side === s); return q ? this.fistAt(q) : [...this.rest(s), this.restAngle(s)]; }); }
   strike(q: TapCtl["punches"][0]) {
     const w = this.w, sp = w.sp ?? {};
     let k = 1, power = 0.9, freeze = 0.035, shake = 1.2, label: string | undefined;
@@ -196,8 +228,10 @@ class SwipeCtl implements Controller {
   pt = 0;
   cd = 0;
   head = 0;
+  moved = false;
+  pose = new Pose();
   constructor(public w: WeaponDef) {}
-  downAt(x: number, y: number) { this.held = true; this.px = x; this.py = y; this.pt = performance.now(); this.trail = [{ x, y, t: now() }]; }
+  downAt(x: number, y: number) { this.held = true; this.moved = false; this.px = x; this.py = y; this.pt = performance.now(); this.trail = [{ x, y, t: now() }]; }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   down(x: number, y?: number) { this.downAt(x, y!); }
   move(x: number, y: number) {
@@ -205,7 +239,7 @@ class SwipeCtl implements Controller {
     const t = performance.now(), dt = Math.max(1, t - this.pt) / 1000;
     const dx = x - this.px, dy = y - this.py, d = Math.hypot(dx, dy), speed = d / dt;
     this.trail.push({ x, y, t: now() });
-    this.head = Math.atan2(dy, dx);
+    if (d > 0.5) { this.head = Math.atan2(dy, dx); this.moved = true; }
     if (speed > 260 && d > 1) sfx.whoosh(speed / 700);
     if (this.cd <= 0 && speed > 170 && live()) {
       for (let s = 0; s <= 1; s += 0.2) {
@@ -234,7 +268,12 @@ class SwipeCtl implements Controller {
     if (!frozen) this.cd -= dt;
     const t = now();
     while (this.trail.length && t - this.trail[0].t > 0.13) this.trail.shift();
+    // 칼은 손가락 끝을 바짝 따라가고, 손을 떼면 쉬는 자세로 천천히 돌아간다
+    const h = this.trail[this.trail.length - 1];
+    if (this.held && h && this.moved) this.pose.to(h.x - Math.cos(this.head) * 30, h.y - Math.sin(this.head) * 30, this.head, dt, 26);
+    else this.pose.to(G.W * 0.82, G.H - 6 + Math.sin(t * 2.5) * 1.2, -2.1, dt, 12);
   }
+  probe() { return [[this.pose.x, this.pose.y, this.pose.a]]; }
   draw(p: Painter) {
     const w = this.w, E = ER(w).map(hex), tr = this.trail, t = now();
     p.reset();
@@ -247,12 +286,8 @@ class SwipeCtl implements Controller {
       if (i % 2) p.glowLine(a.x, a.y, b.x, b.y, 6, E[4], 0.3 * u);
     }
     // 칼: 손가락 끝을 따라오거나, 쉴 때는 오른쪽 아래에 비스듬히
-    if (this.held && tr.length) {
-      const h = tr[tr.length - 1];
-      p.place(h.x - Math.cos(this.head) * 30, h.y - Math.sin(this.head) * 30, false, this.head);
-      drawWeapon(p, w, t);
-    } else {
-      p.place(G.W * 0.82, G.H - 6 + Math.sin(t * 2.5) * 1.2, false, -2.1);
+    if (!isNaN(this.pose.x)) {
+      p.place(this.pose.x, this.pose.y, false, this.pose.a);
       drawWeapon(p, w, t);
     }
   }
@@ -284,7 +319,11 @@ class HoldCtl implements Controller {
   move(x: number, y: number) { this.ax = x; this.ay = y; }
   up() { this.held = false; }
   pivot(): [number, number] { return [G.W * 0.8, G.H - 4]; }
-  angle() { const [px, py] = this.pivot(); return Math.atan2(this.ay - py, this.ax - px); }
+  aimAngle() { const [px, py] = this.pivot(); return Math.atan2(this.ay - py, this.ax - px); }
+  /** 실제 총구 방향: 조준점 쪽으로 빠르게 돌아간다 (순간 회전 방지) */
+  sa = NaN;
+  angle() { if (isNaN(this.sa)) this.sa = this.aimAngle(); return this.sa; }
+  probe() { const [px, py] = this.pivot(), a = this.angle(); return [[px - Math.cos(a) * this.recoil * 4, py - Math.sin(a) * this.recoil * 4, a]]; }
   muzzle(): [number, number] {
     const [px, py] = this.pivot(), a = this.angle(), L = this.w.art === "pistol" ? 17 : this.w.art === "musket" ? 28 : this.w.art === "gatling" ? 25 : 24;
     return [px + Math.cos(a) * L, py + Math.sin(a) * L];
@@ -354,6 +393,7 @@ class HoldCtl implements Controller {
   update(dt: number, frozen: boolean) {
     if (frozen) return;
     const sp = this.w.sp ?? {};
+    this.sa = this.angle() + angDiff(this.angle(), this.aimAngle()) * (1 - Math.exp(-28 * dt));
     this.recoil = Math.max(0, this.recoil - dt * 9);
     if (this.over > 0) { this.over -= dt; this.heat = Math.max(0, this.heat - 60 * dt); if (this.over <= 0) this.heat = 0; }
     else this.heat = Math.max(0, this.heat - (this.held ? 14 : 45) * dt);
@@ -430,7 +470,9 @@ class ChargeCtl implements Controller {
   T: number;
   constructor(public w: WeaponDef) { this.T = w.art === "claymore" ? 0.8 : w.art === "meteor" ? 1.1 : 0.9; }
   pivot(): [number, number] { return [G.W * 0.24, G.H + 30]; }
-  target(): [number, number] { return live() ? G.bag.center() : [G.W / 2, G.H * 0.45]; }
+  homeP = new Home();
+  target(): [number, number] { return this.homeP.get(); }
+  probe() { return [[...this.headPos(), this.angle()]]; }
   impactAngle() { const [px, py] = this.pivot(), [tx, ty] = this.target(); return Math.atan2(ty - py, tx - px); }
   length() { const [px, py] = this.pivot(), [tx, ty] = this.target(); return Math.hypot(tx - px, ty - py) - 4; }
   down() { if (this.swing >= 0) return; this.charging = true; this.ct = 0; this.readyPlayed = false; }
@@ -470,6 +512,7 @@ class ChargeCtl implements Controller {
     }
   }
   update(dt: number, frozen: boolean) {
+    this.homeP.update(dt);
     if (this.charging) {
       this.ct += dt;
       const lv = clamp(this.ct / this.T);
@@ -610,12 +653,25 @@ class TimingCtl implements Controller {
       G.queue.push({ t: 0.1, f: () => G.hit({ x: cx, y: cy, k: k * 0.6, kind: "pierce", power: 1.6, freeze: 0.06, shake: 3, noFx: true, label: "신창!" }) });
     }
   }
-  pivot(): [number, number] { const c = live() ? G.bag.center() : [G.W / 2, G.H / 2]; return [c[0] + 8, G.H + 30]; }
+  homeP = new Home();
+  pivot(): [number, number] { const c = this.homeP.get(); return [c[0] + 8, G.H + 30]; }
+  spearAt(): number[] {
+    const [px, py] = this.pivot(), [cx, cy] = this.homeP.get();
+    const a = Math.atan2(cy - py, cx - px), dist = Math.hypot(cx - px, cy - py);
+    let reach = dist - 74;
+    if (this.thrust >= 0) {
+      const t = this.thrust;
+      reach += t < 0.06 ? 70 * ease.outQuad(t / 0.06) : t < 0.12 ? 70 : 70 * (1 - ease.inOutQuad(clamp((t - 0.12) / 0.2)));
+    } else reach += Math.sin(G.t * 2.5) * 1.5;
+    return [px + Math.cos(a) * reach, py + Math.sin(a) * reach, a];
+  }
+  probe() { return [this.spearAt()]; }
   update(dt: number, frozen: boolean) {
+    this.homeP.update(dt);
     if (this.thrust >= 0) {
       const before = this.thrust;
       if (!frozen) this.thrust += dt;
-      if (before < 0.045 && this.thrust >= 0.045) this.strike();
+      if (before < 0.06 && this.thrust >= 0.06) this.strike();
       if (this.thrust > 0.32) this.thrust = -1;
     }
     if (frozen) return;
@@ -644,14 +700,8 @@ class TimingCtl implements Controller {
       if (this.streak >= 2) p.text(`x${this.streak}`, cx + this.RT + 6, cy - 4, hex("#ffd84a"), { font: "big", outline: INK });
     }
     // 창: 화면 아래에서 샌드백을 향해, 찌르면 쭉 뻗는다
-    const [px, py] = this.pivot(), [cx, cy] = live() ? G.bag.center() : [G.W / 2, G.H / 2];
-    const a = Math.atan2(cy - py, cx - px), dist = Math.hypot(cx - px, cy - py);
-    let reach = dist - 74;
-    if (this.thrust >= 0) {
-      const t = this.thrust;
-      reach += t < 0.045 ? 70 * ease.outExpo(t / 0.045) : t < 0.12 ? 70 : 70 * (1 - ease.inOutQuad(clamp((t - 0.12) / 0.2)));
-    } else reach += Math.sin(G.t * 2.5) * 1.5;
-    p.place(px + Math.cos(a) * reach, py + Math.sin(a) * reach, false, a);
+    const [sx, sy, sa] = this.spearAt();
+    p.place(sx, sy, false, sa);
     drawWeapon(p, w, now());
     p.reset();
     void E;
@@ -674,7 +724,10 @@ class ThrowCtl implements Controller {
   cy = 0;
   cd = 0;
   proj: Proj[] = [];
+  lower = 0;
   constructor(public w: WeaponDef) {}
+  heldAt(): number[] { return [G.W / 2, G.H - 10 + Math.sin(G.t * 3) * 1.2 + this.lower, -Math.PI / 2 + 0.3]; }
+  probe() { return [this.heldAt()]; }
   down(x: number, y: number) { this.held = true; this.sx = this.cx = x; this.sy = this.cy = y; this.s.clear(); this.s.push(x, y); }
   move(x: number, y: number) { if (!this.held) return; this.cx = x; this.cy = y; this.s.push(x, y); }
   up(x: number, y: number) {
@@ -736,6 +789,8 @@ class ThrowCtl implements Controller {
   update(dt: number, frozen: boolean) {
     if (frozen) return;
     this.cd -= dt;
+    // 던진 직후 손이 살짝 내려갔다가 다음 무기를 들고 올라온다
+    this.lower += ((this.cd > 0 ? 6 : 0) - this.lower) * (1 - Math.exp(-30 * dt));
     const sp = this.w.sp ?? {};
     for (let i = this.proj.length - 1; i >= 0; i--) {
       const q = this.proj[i];
@@ -784,7 +839,8 @@ class ThrowCtl implements Controller {
       }
     }
     // 손에 든 다음 투척물
-    p.place(G.W / 2, G.H - 10 + Math.sin(G.t * 3) * 1.2 + (this.cd > 0 ? 6 : 0), false, -Math.PI / 2 + 0.3);
+    const [hx, hy, ha] = this.heldAt();
+    p.place(hx, hy, false, ha);
     drawThrown(p, w, now());
   }
   hint(p: Painter, t: number, a: number) {
@@ -806,8 +862,17 @@ class BowCtl implements Controller {
   cy = 0;
   arrows: Arrow[] = [];
   reload = 0;
+  pose = new Pose();
+  homeP = new Home();
   constructor(public w: WeaponDef) {}
   down(x: number, y: number) { this.held = true; this.ax = this.cx = x; this.ay = this.cy = y; }
+  /** 당기기 전(6px 미만)에는 각도가 손떨림에 튀지 않게 샌드백 쪽을 겨눈다 */
+  stableAim() {
+    if (Math.hypot(this.ax - this.cx, this.ay - this.cy) >= 6) return this.aim();
+    const [hx, hy] = this.homeP.get();
+    return Math.atan2(hy - this.ay, hx - this.ax);
+  }
+  probe() { return [[this.pose.x, this.pose.y, this.pose.a]]; }
   move(x: number, y: number) {
     if (!this.held) return;
     this.cx = x; this.cy = y;
@@ -851,6 +916,10 @@ class BowCtl implements Controller {
     if (frozen) return;
     this.reload -= dt;
     const sp = this.w.sp ?? {};
+    this.homeP.update(dt);
+    // 활은 누른 자리로 빠르게 날아오고, 놓으면 쉬는 자리로 돌아간다
+    if (this.held && !sp.cross) this.pose.to(this.ax, this.ay, this.stableAim(), dt, 24);
+    else this.pose.to(G.W * 0.18, G.H - 18 + Math.sin(G.t * 2.4) * 1.2, -0.9, dt, 14);
     for (let i = this.arrows.length - 1; i >= 0; i--) {
       const q = this.arrows[i];
       q.t += dt;
@@ -885,8 +954,9 @@ class BowCtl implements Controller {
       drawArrow(p, w, 16);
       p.reset();
     }
-    if (this.held && !(w.sp?.cross)) {
-      const pull = this.pull(), a = this.aim();
+    const held = this.held && !(w.sp?.cross);
+    if (held) {
+      const pull = this.pull(), a = this.stableAim();
       if (pull > 0.08) {
         // 궤적 미리보기
         const speed = 260 + 600 * pull;
@@ -896,15 +966,13 @@ class BowCtl implements Controller {
           p.dot(x, y, i % 2 ? E[5] : WHITE, 1 - i / 14);
         }
       }
-      p.place(this.ax, this.ay, false, a);
+    }
+    if (!isNaN(this.pose.x)) {
+      const { x, y, a } = this.pose, pull = held ? this.pull() : 0;
+      p.place(x, y, false, a);
       drawBow(p, w, pull, now());
-      if (pull > 0.02) { p.place(this.ax - Math.cos(a) * pull * 14, this.ay - Math.sin(a) * pull * 14, false, a); drawArrow(p, w, 18); p.place(this.ax, this.ay, false, a); }
-    } else {
-      // 쉬는 활
-      const x = G.W * 0.18, y = G.H - 18 + Math.sin(G.t * 2.4) * 1.2;
-      p.place(x, y, false, -0.9);
-      drawBow(p, w, 0, now());
-      if (this.reload <= 0) drawArrow(p, w, 14);
+      if (held && pull > 0.02) { p.place(x - Math.cos(a) * pull * 14, y - Math.sin(a) * pull * 14, false, a); drawArrow(p, w, 18); }
+      else if (!held && this.reload <= 0) drawArrow(p, w, 14);
     }
   }
   hint(p: Painter, t: number, a: number) {
@@ -923,6 +991,8 @@ class RuneCtl implements Controller {
   burn: { pts: number[][]; t: number }[] = [];
   held = false;
   cast = 0;
+  lift = 0;
+  probe() { return [[G.W / 2 + 4, G.H + 6 - this.cast * 6, -Math.PI / 2 + 0.35 - this.cast * 0.2]]; }
   bolts: { x: number; y: number; vx: number; vy: number; t: number; k: number }[] = [];
   constructor(public w: WeaponDef) {}
   tip(): [number, number] { return [G.W / 2 + 18, G.H - 34 - this.cast * 6]; }
@@ -955,7 +1025,7 @@ class RuneCtl implements Controller {
     for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
     const [x0, y0] = pts[0], [x1, y1] = pts[pts.length - 1];
     this.burn.push({ pts, t: 0 });
-    this.cast = 1;
+    this.lift = 0.06;
     if (L < 14) {
       // 탭: 마법탄
       if (!this.spend(5)) return;
@@ -1006,7 +1076,9 @@ class RuneCtl implements Controller {
   update(dt: number, frozen: boolean) {
     if (frozen) return;
     this.mana = Math.min(100, this.mana + 24 * (1 + (this.w.sp?.regen ?? 0)) * dt);
-    this.cast = Math.max(0, this.cast - dt * 4);
+    // 시전: 지팡이를 빠르게 들어 올렸다가 천천히 내린다 (한 프레임에 튀지 않게)
+    if (this.lift > 0) { this.lift -= dt; this.cast = Math.min(1, this.cast + dt * 25); }
+    else this.cast = Math.max(0, this.cast - dt * 4);
     for (const b of this.burn) b.t += dt;
     this.burn = this.burn.filter((b) => b.t < 0.35);
     const E = ER(this.w);
@@ -1082,19 +1154,29 @@ class WhirlCtl implements Controller {
   move(x: number, y: number) { if (this.held) { this.tx = x; this.ty = y; } }
   up() { this.held = false; }
   ball() { return this.pts[this.N - 1]; }
+  probe() { const b = this.ball(); return [[this.hx, this.hy, 0], [b.x, b.y, 0]]; }
   update(dt: number, frozen: boolean) {
     if (frozen) return;
     this.cd -= dt;
     if (!this.held) { this.tx += (G.W * 0.22 - this.tx) * dt * 0.8; this.ty += (G.H * 0.62 - this.ty) * dt * 0.8; }
     const steps = 3, h = dt / steps;
     for (let s = 0; s < steps; s++) {
-      this.hx += (this.tx - this.hx) * Math.min(1, h * 40);
-      this.hy += (this.ty - this.hy) * Math.min(1, h * 40);
+      // 손잡이는 손가락을 따라가되 초당 900px보다 빠르지 않게 (멀리 눌렀을 때 순간이동 방지)
+      const kk = 1 - Math.exp(-25 * h);
+      let mx = (this.tx - this.hx) * kk, my = (this.ty - this.hy) * kk;
+      const ml = Math.hypot(mx, my), cap = 900 * h;
+      if (ml > cap) { mx *= cap / ml; my *= cap / ml; }
+      this.hx += mx;
+      this.hy += my;
       const P0 = this.pts[0];
       P0.x = P0.px = this.hx; P0.y = P0.py = this.hy;
       for (let i = 1; i < this.N; i++) {
-        const q = this.pts[i], vx = (q.x - q.px) * 0.995, vy = (q.y - q.py) * 0.995;
+        const q = this.pts[i];
+        let vx = (q.x - q.px) * 0.995, vy = (q.y - q.py) * 0.995;
         q.px = q.x; q.py = q.y;
+        // 쇠공 속도 상한 (초당 약 2000px): 한 프레임에 튀어 보이지 않게
+        const vl = Math.hypot(vx, vy), vmax = 2000 * h;
+        if (vl > vmax) { vx *= vmax / vl; vy *= vmax / vl; }
         q.x += vx;
         q.y += vy + 520 * h * h * (i === this.N - 1 ? 1.5 : 1);
       }
