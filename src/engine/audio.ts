@@ -47,12 +47,19 @@ async function load() {
         const u = urls[`../sfx/${n}_${i}.mp3`];
         if (!u) return;
         try {
-          const ab = await (await fetch(u)).arrayBuffer();
+          const ab = u.startsWith("data:") ? b64(u) : await (await fetch(u)).arrayBuffer();
           bufs[n][i] = await new Promise<AudioBuffer>((res, rej) => ctx!.decodeAudioData(ab, res, rej));
         } catch { /* 디코딩 실패한 변형은 건너뛴다 */ }
       }),
     );
   }
+}
+
+/** 단일 파일 빌드에서는 소리가 data: 주소로 들어 있다: fetch 없이 바로 푼다 */
+function b64(u: string): ArrayBuffer {
+  const bin = atob(u.slice(u.indexOf(",") + 1)), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
 }
 
 export function applyVolumes() {
