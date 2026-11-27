@@ -62,20 +62,29 @@ class Sampler {
 
 // ============================================================ 1. 연타 (권갑)
 class TapCtl implements Controller {
-  punches: { side: number; fx: number; fy: number; tx: number; ty: number; t: number; hit: boolean; big: number }[] = [];
+  punches: { side: number; fx: number; fy: number; tx: number; ty: number; t: number; hit: boolean; big: number; a0: number }[] = [];
   side = 1;
   t = 0;
   constructor(public w: WeaponDef) {}
   down(x: number, y: number) {
     const b = G.bag;
     const [tx, ty] = live() ? b.aimPoint(x, y) : [x, y];
-    this.side = -this.side;
+    // 쉬고 있는 손을 먼저 쓰고, 둘 다 바쁘면 더 많이 돌아온 손을 쓴다
+    const busy = (s: number) => this.punches.find((q) => q.side === s);
+    const a = busy(-this.side), b2 = busy(this.side);
+    this.side = !a ? -this.side : !b2 ? this.side : a.t >= b2.t ? -this.side : this.side;
     const n = G.combo + 1, sp = this.w.sp ?? {};
     let big = n % 10 === 0 ? 1 : 0;
     if (sp.every && n % sp.every === 0) big = 2;
-    const [rx, ry] = this.rest(this.side);
-    this.punches.push({ side: this.side, fx: rx, fy: ry, tx, ty, t: 0, hit: false, big });
-    if (this.punches.length > 6) this.punches.shift();
+    // 그 손이 아직 움직이는 중이면 지금 있는 자리에서 이어서 뻗는다 (순간이동 방지)
+    let [fx, fy] = this.rest(this.side), a0 = this.restAngle(this.side);
+    const prev = busy(this.side);
+    if (prev) {
+      if (!prev.hit && live()) { prev.hit = true; this.strike(prev); }
+      [fx, fy, a0] = this.fistAt(prev);
+      this.punches.splice(this.punches.indexOf(prev), 1);
+    }
+    this.punches.push({ side: this.side, fx, fy, tx, ty, t: 0, hit: false, big, a0 });
     sfx.whoosh(0.6);
   }
   move() {}
@@ -83,8 +92,9 @@ class TapCtl implements Controller {
   /** 가드 자세의 주먹 위치: 샌드백 아래 양옆 */
   rest(side: number): [number, number] {
     const [cx, cy] = live() ? G.bag.center() : [G.W / 2, G.H * 0.45];
-    return [cx + side * 34, Math.min(G.floorY - 6, cy + 30)];
+    return [cx + side * 34, Math.min(G.floorY - 6, cy + 30) + Math.sin(this.t * 3 + side) * 1.5];
   }
+  restAngle(side: number) { return side < 0 ? -0.75 : -2.39; }
   strike(q: TapCtl["punches"][0]) {
     const w = this.w, sp = w.sp ?? {};
     let k = 1, power = 0.9, freeze = 0.035, shake = 1.2, label: string | undefined;
@@ -117,14 +127,20 @@ class TapCtl implements Controller {
       if (q.t > 0.26) this.punches.splice(i, 1);
     }
   }
+  /** 주먹 위치와 각도. 모든 구간이 이어지게: 출발점에서 0으로 시작 → 살짝 뒤로 → 쭉 뻗기 → 머무름 → 가드로 회수 */
   fistAt(q: TapCtl["punches"][0]): [number, number, number] {
-    const a = Math.atan2(q.ty - q.fy, q.tx - q.fx);
-    let u: number;
-    // 뒤로 살짝 당겼다가(예비 동작) 쭉 뻗고, 맞힌 자리에 잠깐 머물렀다가 가드로 돌아온다
-    if (q.t < 0.045) u = -0.15 + 1.15 * ease.outQuad(q.t / 0.045);
-    else if (q.t < 0.09) u = 1;
-    else u = 1 - ease.inOutQuad(clamp((q.t - 0.09) / 0.17));
-    return [q.fx + (q.tx - q.fx) * u - Math.cos(a) * 7 * u, q.fy + (q.ty - q.fy) * u - Math.sin(a) * 7 * u, a];
+    const a = Math.atan2(q.ty - q.fy, q.tx - q.fx), c = Math.cos(a), s = Math.sin(a);
+    const reach = (u: number): [number, number] => [q.fx + (q.tx - q.fx) * u - c * 7 * Math.max(0, u), q.fy + (q.ty - q.fy) * u - s * 7 * Math.max(0, u)];
+    const turn = (from: number, to: number, k: number) => { let d = to - from; d -= Math.round(d / (Math.PI * 2)) * Math.PI * 2; return from + d * k; };
+    if (q.t < 0.09) {
+      const k = Math.min(1, q.t / 0.045);
+      const u = k < 0.3 ? -0.15 * Math.sin((k / 0.3) * (Math.PI / 2)) : -0.15 + 1.15 * ease.outQuad((k - 0.3) / 0.7);
+      const [x, y] = reach(u);
+      return [x, y, turn(q.a0, a, Math.min(1, q.t / 0.03))];
+    }
+    const v = ease.inOutQuad(clamp((q.t - 0.09) / 0.17));
+    const [hx, hy] = reach(1), [rx, ry] = this.rest(q.side);
+    return [hx + (rx - hx) * v, hy + (ry - hy) * v, turn(a, this.restAngle(q.side), v)];
   }
   draw(p: Painter) {
     const B2 = cols(this.w).B;
@@ -141,8 +157,8 @@ class TapCtl implements Controller {
     };
     for (const s of [-1, 1]) {
       if (this.punches.some((q) => q.side === s)) continue;
-      const [x, y] = this.rest(s), bob = Math.sin(this.t * 3 + s) * 1.5;
-      drawArm(x, y + bob, s < 0 ? -0.75 : -2.39, 0);
+      const [x, y] = this.rest(s);
+      drawArm(x, y, this.restAngle(s), 0);
     }
     for (const q of this.punches) {
       const [x, y, a] = this.fistAt(q);

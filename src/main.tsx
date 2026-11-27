@@ -80,3 +80,4 @@ setInterval(() => St.save(), 10000);
 document.addEventListener("visibilitychange", () => { if (document.hidden) St.save(); });
 window.addEventListener("pagehide", () => St.save());
 void claimable;
+if (import.meta.env.DEV) (window as unknown as { __G: typeof G }).__G = G;
