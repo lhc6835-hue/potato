@@ -1,4 +1,4 @@
-// 배경음은 Kenney 팩에 루프가 없어서 직접 작곡해 렌더했다 (tools/compose.cjs → src/sfx/bgm_*.mp3).
+// 배경음: OpenGameArt의 CC0 곡들 (출처는 src/sfx/MUSIC-CREDITS.txt). 지역마다 한 곡.
 // 효과음: Kenney CC0 오디오 팩 (Impact · RPG · Interface · Sci-fi · Digital · Casino · UI · Music Jingles).
 // 원본 ogg를 모노 mp3로 바꿔 src/sfx에 넣었다 (라이선스: src/sfx/KENNEY-LICENSE.txt).
 // 같은 소리가 반복돼도 질리지 않게 변형 여러 개 중 무작위로 고르고, 재생 속도(음높이)·볼륨을 살짝 흔든다.
@@ -269,12 +269,11 @@ export const sfx = {
   goblin() { play("pluck", { vol: 0.4, rate: 1.4 }); play("pluck", { vol: 0.35, rate: 1.8, delay: 0.08 }); play("pluck", { vol: 0.3, rate: 2.1, delay: 0.16 }); },
 };
 
-// ---- 배경음: 직접 작곡한 판타지 RPG 곡 4개 (tools/compose.cjs로 렌더). 지역마다 곡을 고르고 바뀔 때 교차 페이드
-const BGM_FOR = ["town", "town", "quest", "sky", "quest", "sky", "dark", "dark"];
+// ---- 배경음: OpenGameArt CC0 곡 8개, 지역마다 한 곡. 지역이 바뀌면 교차 페이드
+const BGM_FOR = ["inn", "bard", "mines", "mirror", "forge", "sky", "castle", "abyss"];
 const bgmBufs: Record<string, AudioBuffer | null | "loading"> = {};
 let cur: { name: string; src: AudioBufferSourceNode; g: GainNode } | null = null;
-let want = "town";
-let fever = false;
+let want = "inn";
 
 async function bgmBuf(name: string): Promise<AudioBuffer | null> {
   const have = bgmBufs[name];
@@ -296,13 +295,12 @@ async function bgmBuf(name: string): Promise<AudioBuffer | null> {
 async function switchBgm() {
   if (!ctx) return;
   const name = want;
-  if (cur?.name === name) { cur.src.playbackRate.setTargetAtTime(fever ? 1.06 : 1, ctx.currentTime, 0.3); return; }
+  if (cur?.name === name) return;
   const buf = await bgmBuf(name);
   if (!buf || want !== name || cur?.name === name) return;
   const t = ctx.currentTime, src = ctx.createBufferSource(), g = ctx.createGain();
   src.buffer = buf;
   src.loop = true;
-  src.playbackRate.value = fever ? 1.06 : 1;
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(1, t + 1.5);
   src.connect(g).connect(musicBus);
@@ -311,9 +309,8 @@ async function switchBgm() {
   cur = { name, src, g };
 }
 
-export function music(region: number, isFever: boolean) {
+export function music(region: number, _isFever: boolean) {
   want = BGM_FOR[Math.max(0, Math.min(BGM_FOR.length - 1, region))];
-  fever = isFever;
   switchBgm();
 }
 export function startMusic() { switchBgm(); }

@@ -397,7 +397,7 @@ function OptTab() {
       </div>
       {!wipe ? <Btn kind="danger" onClick={() => setWipe(true)}>처음부터 다시 하기</Btn>
         : <div class="cbtns"><Btn kind="danger" onClick={() => { St.wipe(); location.reload(); }}>모든 진행을 지웁니다</Btn><Btn onClick={() => setWipe(false)}>취소</Btn></div>}
-      <p class="credit">이펙트: patch-gg/pixelfx 코어(MIT)로 이 게임에서 새로 만든 효과 · 폰트: Galmuri (OFL) · 효과음: Kenney 오디오 팩 (CC0) · 배경음: 이 게임을 위해 작곡</p>
+      <p class="credit">이펙트: patch-gg/pixelfx 코어(MIT)로 이 게임에서 새로 만든 효과 · 폰트: Galmuri (OFL) · 효과음: Kenney 오디오 팩 (CC0) · 배경음: OpenGameArt CC0 곡 (RandomMind, Juhani Junkala, Joth)</p>
     </div>
   );
 }
