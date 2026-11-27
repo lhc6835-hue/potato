@@ -3,6 +3,8 @@
 판타지 세계의 샌드백을 두드려 골드를 벌고, 무기를 모으고, 동료를 고용하고, 환생을 거듭하며 끝없는 심연까지 내려가는 픽셀 방치형 타이쿤.
 브라우저에서 모바일(세로)과 PC 모두 플레이할 수 있다.
 
+**플레이: https://lhc6835-hue.github.io/potato/** (`gh-pages` 브랜치의 단일 파일 빌드를 GitHub Pages로 배포)
+
 ## 규모
 
 - **공격 방식 9종**: 무기 종류마다 조작이 다르다
@@ -43,6 +45,7 @@ npm run dev
 ```
 
 빌드: `npm run build` → `dist/`. 파일 하나로: `npm run build:single` → `dist-single/index.html`.
+배포: 그 `index.html`(과 `manifest.webmanifest`, 빈 `.nojekyll`)을 `gh-pages` 브랜치에 올리면 GitHub Pages가 자동으로 다시 배포한다.
 
 ## 개발 도구
 
