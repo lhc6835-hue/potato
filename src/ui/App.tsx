@@ -1,358 +1,470 @@
-// 앱 본체: 시뮬레이션 루프, 저장, 오프라인 수익, 이벤트 알림, HUD/탭/대화/모달.
+// 화면 UI: 위 HUD(재화·스테이지·체력·피버), 장면 아래 무기 칩, 탭 패널(무기·동료·시설·환생·상점·도감·설정).
+import { useEffect, useState, useRef } from "preact/hooks";
+import type { JSX } from "preact";
+import { G } from "../game/world";
+import * as St from "../game/state";
+import { S } from "../game/state";
+import * as A from "../game/actions";
+import { WEAPONS, WEAPON, RARITY, WeaponDef } from "../data/weapons";
+import { MODES, MODE_ORDER, Mode } from "../data/modes";
+import { ELEM } from "../data/elements";
+import { CREW, FACILITIES, TALENTS, ACHIEVEMENTS } from "../data/crew";
+import { BAGS, REGIONS } from "../data/bags";
+import { fmt, dur } from "../engine/num";
+import { audio, applyVolumes, sfx, unlockAudio } from "../engine/audio";
+import { weaponIcon, bagIcon, crewIcon, pix } from "./icons";
+import { on } from "./bus";
 
-import { useEffect } from "preact/hooks";
-import { ui, useUi, bump, toast, openSheet, setTab, closeSheet, type Tab } from "./store";
-import { GameView } from "./GameView";
-import { Sheets, advance, startChapterIntro } from "./Sheets";
-import { Panels } from "./Panels";
-import { Portrait, Bar } from "./common";
-import { SPEAKER_NAME, featureOn, LAST_CHAPTER, FEATURE_CHAPTER } from "../data/story";
-import { EVENT } from "../data/events";
-import { MENU } from "../data/menus";
-import * as E from "../sim/econ";
-import * as G from "../sim/game";
-import { bus } from "../sim/bus";
-import { save } from "../sim/save";
-import { sfx, unlockAudio, setSfxEnabled } from "../sfx";
-import { fmt, won, duration, cnt } from "../util/format";
+type Tab = "arm" | "crew" | "fac" | "asc" | "shop" | "dex" | "opt";
+const TABS: [Tab, string, string][] = [
+  ["arm", "무기", "star"], ["crew", "동료", "soul"], ["fac", "시설", "coin"], ["asc", "환생", "soul"], ["shop", "상점", "gem"], ["dex", "도감", "chest"], ["opt", "설정", "stone"],
+];
 
-
-export function App() {
-  useUi();
-
-  // 시뮬레이션 루프 + 저장
+function useTick(ms: number) {
+  const [, set] = useState(0);
   useEffect(() => {
-    const s = ui.s;
-    let uiT = 0;
-    const id = setInterval(() => {
-      const now = Date.now();
-      let dt = (now - s.lastTick) / 1000;
-      s.lastTick = now;
-      if (dt > 15) {
-        // 탭이 잠들어 있었다
-        s.lastTick = now - dt * 1000;
-        const r = G.applyOffline(s, now);
-        s.lastTick = now;
-        if (r && r.money > 0) {
-          ui.modal = { kind: "offline", away: r.away, money: r.money };
-          bump();
-        }
-        return;
-      }
-      while (dt > 0) {
-        const step = Math.min(0.1, dt);
-        G.tick(s, step);
-        dt -= step;
-      }
-      uiT += 1;
-      if (uiT % 2 === 0) bump();
-    }, 100);
-    const saver = setInterval(() => !ui.noSave && save(s), 10000);
-    const hide = () => {
-      if (document.visibilityState === "hidden" && !ui.noSave) save(s);
-    };
-    document.addEventListener("visibilitychange", hide);
-    window.addEventListener("pagehide", () => !ui.noSave && save(s));
-    return () => {
-      clearInterval(id);
-      clearInterval(saver);
-      document.removeEventListener("visibilitychange", hide);
-    };
-  }, []);
-
-  // 알림
-  useEffect(() => {
-    setSfxEnabled(() => ui.s.settings.sound);
-    const unlock = () => unlockAudio();
-    window.addEventListener("pointerdown", unlock);
-    const offs = [
-      () => window.removeEventListener("pointerdown", unlock),
-      bus.on("sfx", (n) => sfx(n)),
-      bus.on("toast", (t) => toast(t)),
-      bus.on("upgrade", (d) => d.milestone && d.branch === G.activeBranch(ui.s).id && sfx("milestone")),
-      bus.on("build", () => sfx("build")),
-      bus.on("floor", () => sfx("build")),
-      bus.on("hire", () => sfx("hire")),
-      bus.on("goal", () => sfx("goal")),
-      bus.on("achievement", () => sfx("achieve")),
-      bus.on("chapter", () => sfx("chapter")),
-      bus.on("discover", () => sfx("achieve")),
-      bus.on("orderDone", () => sfx("goal")),
-      bus.on("orderFail", () => sfx("bad")),
-      bus.on("branch", () => sfx("build")),
-      bus.on("event", (e) => sfx(EVENT[e.id].good ? "good" : "bad")),
-      bus.on("achievement", (a) => toast(`🏆 업적: ${a.name}`, true)),
-      bus.on("goal", (g) => {
-        toast(`✅ ${g.text}`);
-        if (G.chapterDone(ui.s)) toast("챕터 목표 완료! 위의 목표 카드를 눌러 다음 챕터로", true);
-      }),
-      bus.on("menu", (id) => ui.s.chapter > 1 && toast(`새 메뉴 해금: ${MENU[id].name}`, true)),
-      bus.on("event", (e) => {
-        const d = EVENT[e.id];
-        toast(`${d.good ? "📣" : "⚠️"} ${d.name}: ${d.report}`, d.good);
-      }),
-      bus.on("order", (o) => toast(`📦 특별 주문: ${MENU[o.menu].name} ${fmt(o.need)}개`, true)),
-      bus.on("orderDone", (o) => toast(`📦 주문 완료! +${won(o.reward)}`, true)),
-      bus.on("orderFail", () => toast("📦 주문 시간 초과.")),
-      bus.on("rivalDefeated", () => toast("고구마 그룹이 이 동네에서 철수했다.", true)),
-      bus.on("hire", () => featureOn(ui.s, "managers") && ui.s.managers.length === 1 && toast("매니저를 라인에 배치하면 자동으로 조리한다. 라인 이름표를 눌러 보자.")),
-    ];
-    return () => offs.forEach((f) => f());
-  }, []);
-
-  // 첫 실행: 챕터 1 소개
-  useEffect(() => {
-    setTimeout(() => startChapterIntro(), 400);
-  }, []);
-
-  return (
-    <div class="game">
-      <GameView />
-      <Hud />
-      <SideCards />
-      <Panels />
-      <Sheets />
-      <Tabs />
-      <Toasts />
-      <ChapterCard />
-      <Dialog />
-      <Modal />
-    </div>
-  );
+    const id = setInterval(() => set((x) => x + 1), ms);
+    const off = on((e) => { if (e === "ui" || e === "equip" || e === "stage" || e === "region") set((x) => x + 1); });
+    return () => { clearInterval(id); off(); };
+  }, [ms]);
 }
 
-// ---------------------------------------------------------------- HUD
+const Icon = ({ src, size = 16, cls = "" }: { src: string; size?: number; cls?: string }) => <img class={"px " + cls} src={src} width={size} height={size} draggable={false} />;
 
+function Btn(p: { onClick: () => void; disabled?: boolean; kind?: string; children: unknown }) {
+  return (
+    <button class={"btn " + (p.kind ?? "")} disabled={p.disabled} onClick={(e) => { e.stopPropagation(); unlockAudio(); p.onClick(); }}>
+      {p.children as JSX.Element}
+    </button>
+  );
+}
+const Cost = ({ v, icon = "coin" }: { v: number; icon?: string }) => (
+  <span class="cost"><Icon src={pix(icon)} size={12} />{fmt(v)}</span>
+);
+
+// ------------------------------------------------------------------ HUD
+let dpsHist: number[] = [];
+let lastDmg = 0;
 function Hud() {
-  const s = ui.s;
-  const b = G.activeBranch(s);
-  const h = E.hour(s.clock);
-  const hh = Math.floor(h), mm = Math.floor((h - hh) * 6) * 10;
-  const rush = E.isRush(h);
-  const income = E.idleIncome(s);
-  const ev = s.events.filter((e) => !e.branch || e.branch === b.id);
+  useTick(100);
+  const b = G.bag;
+  const r = REGIONS[St.regionOf(S.stage)];
+  const inRegion = ((S.stage - 1) % 50) + 1;
+  const hp = b ? b.frac : 1;
+  const ref = useRef<HTMLSpanElement>(null);
+  const gref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const d = S.stats.dmg - lastDmg;
+      lastDmg = S.stats.dmg;
+      dpsHist.push(d);
+      if (dpsHist.length > 3) dpsHist = dpsHist.slice(-3);
+      // 코인이 날아갈 목표: HUD 아이콘 위치
+      const cv = document.querySelector("canvas.scene") as HTMLCanvasElement | null;
+      if (cv && ref.current) {
+        const cr = cv.getBoundingClientRect(), ir = ref.current.getBoundingClientRect();
+        G.coinTarget = [((ir.left + ir.width / 2 - cr.left) / cr.width) * G.W, ((ir.top + ir.height / 2 - cr.top) / cr.height) * G.H];
+        if (gref.current) { const gr = gref.current.getBoundingClientRect(); G.gemTarget = [((gr.left + gr.width / 2 - cr.left) / cr.width) * G.W, ((gr.top + gr.height / 2 - cr.top) / cr.height) * G.H]; }
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  const dps = dpsHist.length ? dpsHist.reduce((a, c) => a + c, 0) / dpsHist.length : 0;
+  const boss = G.bossMax > 0 && G.bossT > 0;
+  const fever = G.fever > 0;
   return (
     <div class="hud">
-      <div class="hud-row">
-        <div class="money mono">{fmt(s.money)}<small>원</small></div>
-        <div class="spacer" />
-        <span class="chip">{E.isNight(h) ? "🌙" : "☀️"} {E.day(s.clock)}일 {String(hh).padStart(2, "0")}:{String(mm).padStart(2, "0")}</span>
-        {rush && <span class="chip rush">🔥 {E.isLunch(h) ? "점심" : "저녁"} 러시</span>}
+      <div class="res">
+        <span class="chip gold" ref={ref}><Icon src={pix("coin")} size={16} />{fmt(S.gold)}</span>
+        <span class="chip gem" ref={gref}><Icon src={pix("gem")} size={14} />{fmt(S.gems)}</span>
+        <span class="chip stone"><Icon src={pix("stone")} size={14} />{S.stones}</span>
+        {S.soulsTotal > 0 && <span class="chip soul"><Icon src={pix("soul")} size={14} />{fmt(S.souls)}</span>}
+        {S.boost > Date.now() && <span class="chip boost">골드 2배 {dur((S.boost - Date.now()) / 1000)}</span>}
       </div>
-      <div class="hud-row" style={{ marginTop: 3 }}>
-        <span class="chip">📈 {fmt(income)}/초</span>
-        {s.branches.length > 1 && <span class="chip">🏪 {s.branches.length}</span>}
-        {featureOn(s, "research") && <span class="chip">💡 {fmt(s.research.ideas)}</span>}
-        {s.prestige.golden > 0 && <span class="chip">✨ {fmt(s.prestige.golden)}</span>}
-        {featureOn(s, "rival") && !s.rival.defeated && <span class="chip" style={{ color: "#c8a0e8" }}>🍠 {s.rival.share.toFixed(0)}%</span>}
-      </div>
-      {ev.length > 0 && (
-        <div class="hud-row" style={{ marginTop: 4, flexWrap: "wrap" }}>
-          {ev.map((e) => <span class={`chip ev ${EVENT[e.id].good ? "" : "bad"}`}>{EVENT[e.id].name} {Math.ceil(e.left)}초</span>)}
+      <div class="stage">
+        <div class="stage-top">
+          <span class="region" style={{ color: r.accent }}>{r.name}</span>
+          <span class="stg">{S.stage >= 351 ? `심연 ${S.stage - 350}층` : `${inRegion} / 50`}</span>
+          <span class="dps">초당 {fmt(dps + St.totalCrewDps() * 0)}</span>
         </div>
-      )}
-      <GoalCard />
+        <div class={"hpbar" + (b?.boss ? " boss" : b?.elite ? " elite" : b?.golden ? " golden" : "")}>
+          <div class="hpfill" style={{ width: `${hp * 100}%` }} />
+          <span class="hptext">{b ? `${b.golden ? "황금 " : b.elite ? "정예 " : ""}${b.def.name}  ${fmt(Math.max(0, b.hp))}` : ""}</span>
+        </div>
+        {boss && <div class="timer"><div class="tfill" style={{ width: `${(G.bossT / G.bossMax) * 100}%` }} /><span>{G.bossT.toFixed(1)}초</span></div>}
+        <div class={"fever" + (fever ? " on" : "")}>
+          <div class="ffill" style={{ width: `${G.feverT}%` }} />
+          <span>{fever ? `피버! 피해 x3 · 골드 x2  ${G.fever.toFixed(1)}` : "피버"}</span>
+        </div>
+        {S.bossFail && <button class="btn retry" onClick={() => { unlockAudio(); G.retryBoss(); }}>보스 재도전</button>}
+      </div>
     </div>
   );
 }
 
-function GoalCard() {
-  const s = ui.s;
-  if (s.chapter > LAST_CHAPTER) {
+function WeaponBar({ openArm }: { openArm: () => void }) {
+  useTick(80);
+  const w = St.equipped();
+  const h = G.ctl?.hud?.();
+  const recents = A.recent.filter((id) => S.weapons[id] && id !== w.id).slice(0, 4);
+  return (
+    <div class="wbar">
+      <div class="wcur" onClick={() => { unlockAudio(); openArm(); }}>
+        <Icon src={weaponIcon(w)} size={34} />
+        <div class="wtxt">
+          <b style={{ color: RARITY[w.rarity].color }}>{w.name}{(S.weapons[w.id]?.enh ?? 0) > 0 ? ` +${S.weapons[w.id].enh}` : ""}</b>
+          <small>{MODES[w.mode].name} · {MODES[w.mode].how}</small>
+          {h && <div class={"gauge" + (h.warn ? " warn" : "")}><div style={{ width: `${h.v * 100}%` }} /><span>{h.label}</span></div>}
+        </div>
+      </div>
+      <div class="quick">
+        {recents.map((id) => (
+          <button class="qslot" key={id} onClick={() => { unlockAudio(); A.equip(id); }} title={WEAPON[id].name}>
+            <Icon src={weaponIcon(WEAPON[id])} size={26} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ 탭
+function MultBar() {
+  return (
+    <div class="mult">
+      {([1, 10, 100, "max"] as A.Mult[]).map((m) => (
+        <button class={"mbtn" + (A.mult === m ? " on" : "")} onClick={() => A.setMult(m)}>{m === "max" ? "최대" : `x${m}`}</button>
+      ))}
+    </div>
+  );
+}
+
+function perHit(w: WeaponDef) { return St.weaponDmg(w) * St.dmgMul() * MODES[w.mode].k; }
+
+function Armory() {
+  const [mode, setMode] = useState<Mode | "all" | "own">("all");
+  const list = WEAPONS.filter((w) => (mode === "all" ? true : mode === "own" ? !!S.weapons[w.id] : w.mode === mode));
+  return (
+    <div>
+      <div class="filters">
+        <button class={"fbtn" + (mode === "all" ? " on" : "")} onClick={() => setMode("all")}>전체</button>
+        <button class={"fbtn" + (mode === "own" ? " on" : "")} onClick={() => setMode("own")}>보유</button>
+        {MODE_ORDER.map((m) => <button class={"fbtn" + (mode === m ? " on" : "")} onClick={() => setMode(m)}>{MODES[m].name}</button>)}
+      </div>
+      <MultBar />
+      <div class="cards">
+        {list.map((w) => <WeaponCard w={w} key={w.id} />)}
+      </div>
+    </div>
+  );
+}
+
+function WeaponCard({ w }: { w: WeaponDef }) {
+  const st = S.weapons[w.id];
+  const R = RARITY[w.rarity];
+  const locked = !st;
+  const reqOk = S.maxStage >= w.req;
+  const equipped = S.equip === w.id;
+  const E = ELEM[w.elem];
+  if (locked && !reqOk)
     return (
-      <div class="goal" onClick={() => openSheet({ kind: "goals" })}>
-        <div class="t"><span>엔딩 이후</span><span>신시장 {s.bestMarket}곳</span></div>
-        <div class="g"><span>지도 끝의 신시장을 개척하자</span></div>
+      <div class="card dim" style={{ borderColor: R.glow }}>
+        <div class="cicon sil"><Icon src={weaponIcon(w)} size={40} cls="silh" /></div>
+        <div class="cbody">
+          <b style={{ color: R.color }}>{R.name} · {MODES[w.mode].name}</b>
+          <small>스테이지 {w.req} 도달 시 해금</small>
+        </div>
       </div>
     );
-  }
-  const c = G.chapterDef(s);
-  const done = G.chapterDone(s);
-  const g = c.goals.find((x) => !s.goals[x.id]);
-  const [a, t] = g ? g.prog(s) : [1, 1];
-  const n = c.goals.filter((x) => s.goals[x.id]).length;
+  const bl = st ? A.bulk((lv) => St.weaponCost(w, lv), st.lv) : null;
   return (
-    <div class={`goal ${done ? "done" : ""}`} onClick={() => (done ? advance() : openSheet({ kind: "goals" }))}>
-      <div class="t"><span>챕터 {c.n}. {c.title}</span><span>{n}/{c.goals.length}</span></div>
-      {done ? (
-        <div class="g"><span class="acc">다음 챕터로 →</span></div>
+    <div class={"card" + (equipped ? " eq" : "")} style={{ borderColor: equipped ? R.color : R.glow }}>
+      <div class="cicon" style={{ boxShadow: `inset 0 0 12px ${R.glow}` }}><Icon src={weaponIcon(w)} size={40} /></div>
+      <div class="cbody">
+        <div class="ctitle">
+          <b style={{ color: R.color }}>{w.name}</b>
+          {st && st.enh > 0 && <span class="enh">+{st.enh}</span>}
+          <span class="tag">{MODES[w.mode].name}</span>
+          {w.elem !== "none" && <span class="tag" style={{ color: E.ui }}>{E.name}</span>}
+        </div>
+        <small class="desc">{w.desc}</small>
+        <small class="stat">{st ? `Lv.${st.lv} · 한 방 ${fmt(perHit(w))}` : `한 방 ${fmt(St.weaponDmg(w, 1, 0) * St.dmgMul() * MODES[w.mode].k)}`}</small>
+        <div class="cbtns">
+          {locked ? (
+            <Btn kind="buy" disabled={S.gold < St.unlockCost(w)} onClick={() => A.unlockWeapon(w.id)}>해금 <Cost v={St.unlockCost(w)} /></Btn>
+          ) : (
+            <>
+              <Btn kind={equipped ? "on" : ""} disabled={equipped} onClick={() => A.equip(w.id)}>{equipped ? "장착 중" : "장착"}</Btn>
+              <Btn kind="buy" disabled={!bl || S.gold < bl.cost} onClick={() => A.levelWeapon(w.id)}>Lv+{bl!.n} <Cost v={bl!.cost} /></Btn>
+              {st.enh < St.ENH_MAX && (
+                <Btn kind="enh" disabled={S.stones < St.enhanceCost(st.enh)} onClick={() => A.enhance(w.id)}>
+                  강화 <Cost v={St.enhanceCost(st.enh)} icon="stone" /> <small>{Math.round(St.enhanceRate(st.enh) * 100)}%</small>
+                </Btn>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CrewTab() {
+  return (
+    <div>
+      <p class="note">동료는 자동으로 샌드백을 때리고, 자리를 비운 동안에도 골드를 벌어 옵니다. 현재 초당 <b>{fmt(St.totalCrewDps())}</b></p>
+      <MultBar />
+      <div class="cards">
+        {CREW.map((c) => {
+          const lv = S.crew[c.id] ?? 0, ok = S.maxStage >= c.req;
+          if (!ok) return (
+            <div class="card dim"><div class="cicon"><Icon src={crewIcon(c, true)} size={40} /></div><div class="cbody"><b>???</b><small>스테이지 {c.req} 도달 시 합류 가능</small></div></div>
+          );
+          const bl = A.bulk((l) => St.crewCost(c, l), lv);
+          return (
+            <div class="card">
+              <div class="cicon"><Icon src={crewIcon(c)} size={40} /></div>
+              <div class="cbody">
+                <div class="ctitle"><b>{c.name}</b><span class="tag">{c.job}</span>{c.elem !== "none" && <span class="tag" style={{ color: ELEM[c.elem].ui }}>{ELEM[c.elem].name}</span>}</div>
+                <small class="desc">{c.desc}</small>
+                <small class="stat">{lv ? `Lv.${lv} · 초당 ${fmt(St.crewDps(c) * St.crewMul())}` : `초당 ${fmt(c.dps * St.crewMul())}`} {lv > 0 && `· 다음 2배까지 ${25 - (lv % 25)}`}</small>
+                <div class="cbtns"><Btn kind="buy" disabled={S.gold < bl.cost} onClick={() => A.levelCrew(c.id)}>{lv ? `Lv+${bl.n}` : "고용"} <Cost v={bl.cost} /></Btn></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FacTab() {
+  return (
+    <div>
+      <MultBar />
+      <div class="cards">
+        {FACILITIES.map((f) => {
+          const lv = S.fac[f.id] ?? 0, max = lv >= f.max;
+          const bl = A.bulk((l) => St.facCost(f, l), lv, f.max);
+          const val = f.unit === "시간" ? `+${lv * f.per}시간` : f.unit === "%p" ? `+${(lv * f.per * 100).toFixed(0)}%p` : `+${Math.round(lv * f.per * 100)}%`;
+          return (
+            <div class="card">
+              <div class="cicon"><Icon src={pix(["vault", "spring"].includes(f.id) ? "coin" : f.id === "storage" ? "chest" : f.id === "zen" || f.id === "drum" ? "star" : "stone")} size={30} /></div>
+              <div class="cbody">
+                <div class="ctitle"><b>{f.name}</b><span class="tag">Lv.{lv}/{f.max}</span></div>
+                <small class="desc">{f.desc} {val}</small>
+                <div class="cbtns">{max ? <span class="maxed">최대</span> : <Btn kind="buy" disabled={S.gold < bl.cost} onClick={() => A.levelFac(f.id)}>Lv+{bl.n} <Cost v={bl.cost} /></Btn>}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AscTab() {
+  const [ask, setAsk] = useState(false);
+  const gain = St.soulsFor(S.maxStage);
+  return (
+    <div>
+      <div class="asc">
+        <Icon src={pix("soul")} size={40} />
+        <div>
+          <b>환생</b>
+          <p>스테이지 60부터 환생할 수 있습니다. 골드, 무기 레벨, 동료, 시설이 초기화되는 대신 영혼을 얻습니다. 영혼 하나당 모든 피해 +5% (평생 누적), 그리고 영혼 각인을 살 수 있습니다. 무기 소유·강화·보석·강화석은 유지됩니다.</p>
+          <p>지금 환생하면 <b class="soulc">영혼 +{gain}</b> · 누적 영혼 {fmt(S.soulsTotal)} (피해 x{St.soulMul().toFixed(2)})</p>
+          {!ask ? <Btn kind="asc" disabled={!St.canAscend() || gain <= 0} onClick={() => setAsk(true)}>{St.canAscend() ? "환생하기" : `스테이지 60 필요 (최고 ${S.maxStage})`}</Btn>
+            : <div class="cbtns"><Btn kind="asc" onClick={() => { A.ascend(); setAsk(false); }}>정말 환생</Btn><Btn onClick={() => setAsk(false)}>취소</Btn></div>}
+        </div>
+      </div>
+      <h4>영혼 각인 <small>보유 영혼 {fmt(S.souls)}</small></h4>
+      <div class="cards">
+        {TALENTS.map((t) => {
+          const lv = S.tal[t.id] ?? 0, c = St.talCost(t, lv);
+          return (
+            <div class="card">
+              <div class="cbody">
+                <div class="ctitle"><b>{t.name}</b><span class="tag">Lv.{lv}/{t.max}</span></div>
+                <small class="desc">{t.desc}</small>
+                <div class="cbtns">{lv >= t.max ? <span class="maxed">최대</span> : <Btn kind="asc" disabled={S.souls < c} onClick={() => A.levelTalent(t.id)}>각인 <Cost v={c} icon="soul" /></Btn>}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ShopTab() {
+  const [got, setGot] = useState<string | null>(null);
+  return (
+    <div>
+      <p class="note">보석은 보스 첫 처치, 보물 고블린, 보물 상자, 업적에서 얻습니다.</p>
+      <div class="cards">
+        {A.SHOP.map((s) => (
+          <div class="card">
+            <div class="cicon"><Icon src={pix(s.id === "chest" ? "chest" : s.id === "stones" ? "stone" : s.id === "boost" ? "boost" : "coin")} size={30} /></div>
+            <div class="cbody">
+              <b>{s.name}</b>
+              <small class="desc">{s.desc}</small>
+              <div class="cbtns"><Btn kind="gem" disabled={S.gems < s.gems} onClick={() => setGot(A.buyShop(s.id))}>구매 <Cost v={s.gems} icon="gem" /></Btn></div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {got && WEAPON[got] && (
+        <div class="modal" onClick={() => setGot(null)}>
+          <div class="mbox reveal">
+            <small>상자에서 나온 무기</small>
+            <Icon src={weaponIcon(WEAPON[got])} size={96} />
+            <b style={{ color: RARITY[WEAPON[got].rarity].color }}>{RARITY[WEAPON[got].rarity].name} · {WEAPON[got].name}</b>
+            <small>{WEAPON[got].desc}</small>
+            <Btn kind="buy" onClick={() => { A.equip(got); setGot(null); }}>바로 장착</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DexTab() {
+  const [sub, setSub] = useState<"bag" | "ach">("bag");
+  const cl = A.claimable();
+  return (
+    <div>
+      <div class="filters">
+        <button class={"fbtn" + (sub === "bag" ? " on" : "")} onClick={() => setSub("bag")}>샌드백 도감 {Object.keys(S.codex).length}/{BAGS.length}</button>
+        <button class={"fbtn" + (sub === "ach" ? " on" : "")} onClick={() => setSub("ach")}>업적 {cl.length ? `(${cl.length})` : ""}</button>
+      </div>
+      {sub === "bag" ? (
+        REGIONS.map((r) => (
+          <div>
+            <h4 style={{ color: r.accent }}>{r.name} <small>{r.sub}</small></h4>
+            <div class="dex">
+              {BAGS.filter((b) => b.region === r.id).map((b) => {
+                const n = S.codex[b.id] ?? 0;
+                return (
+                  <div class={"dexc" + (b.boss ? " boss" : "")} title={n ? b.desc : "아직 만나지 못했다"}>
+                    <Icon src={bagIcon(b, !n)} size={52} />
+                    <small>{n ? b.name : "???"}</small>
+                    {n > 0 && <small class="kills">{fmt(n)}개 파괴</small>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
       ) : (
-        <>
-          <div class="g"><span>{g!.text}</span><span class="muted mono">{cnt(Math.min(a, t))}/{cnt(t)}</span></div>
-          <Bar v={a / t} />
-        </>
+        <div class="cards">
+          {ACHIEVEMENTS.map((a) => {
+            const v = A.stat(a.stat), done = S.ach[a.id], ok = v >= a.goal;
+            return (
+              <div class={"card" + (done ? " dim" : "")}>
+                <div class="cbody">
+                  <div class="ctitle"><b>{a.name}</b>{done && <span class="tag">완료</span>}</div>
+                  <small class="desc">{a.desc}</small>
+                  <div class="prog"><div style={{ width: `${Math.min(100, (v / a.goal) * 100)}%` }} /><span>{fmt(Math.min(v, a.goal))} / {fmt(a.goal)}</span></div>
+                  {!done && <div class="cbtns"><Btn kind="gem" disabled={!ok} onClick={() => A.claim(a.id)}>받기 <Cost v={a.gems} icon="gem" /></Btn></div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OptTab() {
+  const [wipe, setWipe] = useState(false);
+  const set = (f: () => void) => { f(); audio.sfx = S.opts.sfx; audio.music = S.opts.music; applyVolumes(); St.save(); };
+  return (
+    <div class="opts">
+      <label>효과음 <input type="range" min="0" max="1" step="0.05" value={S.opts.sfx} onInput={(e) => set(() => (S.opts.sfx = +(e.target as HTMLInputElement).value))} /></label>
+      <label>배경음 <input type="range" min="0" max="1" step="0.05" value={S.opts.music} onInput={(e) => set(() => (S.opts.music = +(e.target as HTMLInputElement).value))} /></label>
+      <label>화면 흔들림 <input type="range" min="0" max="1.5" step="0.1" value={S.opts.shake} onInput={(e) => set(() => (S.opts.shake = +(e.target as HTMLInputElement).value))} /></label>
+      <label><input type="checkbox" checked={S.opts.haptic} onChange={(e) => set(() => (S.opts.haptic = (e.target as HTMLInputElement).checked))} /> 진동</label>
+      <label><input type="checkbox" checked={S.opts.dmgText} onChange={(e) => set(() => (S.opts.dmgText = (e.target as HTMLInputElement).checked))} /> 피해 숫자 표시</label>
+      <div class="statgrid">
+        <span>총 타격</span><b>{fmt(S.stats.hits)}</b>
+        <span>부순 샌드백</span><b>{fmt(S.stats.breaks)}</b>
+        <span>치명타</span><b>{fmt(S.stats.crits)}</b>
+        <span>최고 스테이지</span><b>{S.best}</b>
+        <span>누적 골드</span><b>{fmt(S.stats.gold)}</b>
+        <span>환생</span><b>{S.stats.ascends}</b>
+      </div>
+      {!wipe ? <Btn kind="danger" onClick={() => setWipe(true)}>처음부터 다시 하기</Btn>
+        : <div class="cbtns"><Btn kind="danger" onClick={() => { St.wipe(); location.reload(); }}>모든 진행을 지웁니다</Btn><Btn onClick={() => setWipe(false)}>취소</Btn></div>}
+      <p class="credit">이펙트: patch-gg/pixelfx 코어(MIT)로 이 게임에서 새로 만든 효과 · 폰트: Galmuri (OFL) · 소리: WebAudio 합성</p>
+    </div>
+  );
+}
+
+function Panel({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  useTick(250);
+  const badge: Partial<Record<Tab, boolean>> = {
+    arm: WEAPONS.some((w) => !S.weapons[w.id] && S.maxStage >= w.req && S.gold >= St.unlockCost(w)),
+    crew: CREW.some((c) => S.maxStage >= c.req && S.gold >= St.crewCost(c, S.crew[c.id] ?? 0)),
+    asc: St.canAscend() && St.soulsFor(S.maxStage) > 0,
+    dex: A.claimable().length > 0,
+  };
+  return (
+    <div class="panel">
+      <div class="tabs">
+        {TABS.map(([id, name, ic]) => (
+          <button class={"tab" + (tab === id ? " on" : "")} onClick={() => { unlockAudio(); sfx.click(); setTab(id); }}>
+            <Icon src={pix(ic)} size={14} />{name}{badge[id] && <i class="dot" />}
+          </button>
+        ))}
+      </div>
+      <div class="pbody">
+        {tab === "arm" && <Armory />}
+        {tab === "crew" && <CrewTab />}
+        {tab === "fac" && <FacTab />}
+        {tab === "asc" && <AscTab />}
+        {tab === "shop" && <ShopTab />}
+        {tab === "dex" && <DexTab />}
+        {tab === "opt" && <OptTab />}
+      </div>
+    </div>
+  );
+}
+
+export function App({ offline, mount }: { offline: { secs: number; gold: number } | null; mount: (el: HTMLDivElement) => void }) {
+  const [tab, setTab] = useState<Tab>("arm");
+  const sref = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (sref.current) mount(sref.current); }, []);
+  const [off, setOff] = useState(offline);
+  const [title, setTitle] = useState(S.stats.hits === 0);
+  return (
+    <div class="layout">
+      <div class="scene-wrap" ref={sref}>
+        <Hud />
+        <WeaponBar openArm={() => setTab("arm")} />
+      </div>
+      <Panel tab={tab} setTab={setTab} />
+      {off && (
+        <div class="modal" onClick={() => { unlockAudio(); setOff(null); }}>
+          <div class="mbox">
+            <b>돌아오셨군요!</b>
+            <small>{dur(off.secs)} 동안 동료들이 쉬지 않고 샌드백을 두드렸습니다.</small>
+            <span class="big"><Icon src={pix("coin")} size={20} /> +{fmt(off.gold)}</span>
+            <Btn kind="buy" onClick={() => setOff(null)}>받기</Btn>
+          </div>
+        </div>
+      )}
+      {title && (
+        <div class="modal title" onClick={() => { unlockAudio(); setTitle(false); }}>
+          <div class="mbox">
+            <h1>샌드백<br />타이쿤</h1>
+            <small>무기 61종 · 샌드백 37종 · 공격 방식 9가지</small>
+            <small>샌드백을 두드려 골드를 벌고, 더 강한 무기로 더 깊은 곳까지!</small>
+            <Btn kind="buy" onClick={() => setTitle(false)}>시작하기</Btn>
+          </div>
+        </div>
       )}
     </div>
   );
-}
-
-// ---------------------------------------------------------------- 오른쪽 카드
-
-function SideCards() {
-  const s = ui.s;
-  const o = s.order;
-  const fixable = s.events.filter((e) => EVENT[e.id].fixable);
-  if (!o && !fixable.length) return null;
-  return (
-    <div class="side-cards">
-      {o && (
-        <div class="card">
-          <b>📦 특별 주문</b>
-          {MENU[o.menu].name} {cnt(o.got)}/{cnt(o.need)}개
-          <Bar v={o.got / o.need} green />
-          <div class="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <span class="muted">{Math.ceil(o.left)}초 · {fmt(o.reward)}원</span>
-            <button class="btn ghost small" onClick={() => { G.declineOrder(s); bump(); }}>거절</button>
-          </div>
-        </div>
-      )}
-      {fixable.map((e) => (
-        <div class="card" style={{ borderColor: "var(--bad)" }}>
-          <b>⚠️ {EVENT[e.id].name}</b>
-          {EVENT[e.id].desc}
-          <div class="row">
-            <button class="btn red small" style={{ width: "100%" }} onClick={() => { G.fixEvent(s, e.id); ui.scene.smoke(0); bump(); }}>연타해서 해결 ({Math.ceil(e.left)}초)</button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- 탭바
-
-function Tabs() {
-  const s = ui.s;
-  const tabs: [Tab, string, string, boolean][] = [
-    ["shop", "🏪", "가게", true],
-    ["staff", "👔", "직원", featureOn(s, "managers")],
-    ["lab", "🧪", "연구소", featureOn(s, "research")],
-    ["map", "🗺", "지도", featureOn(s, "branches")],
-    ["more", "☰", "더보기", true],
-  ];
-  const canHire = featureOn(s, "managers") && s.money >= E.hireCost(s) && !s.prestige.rules.includes("strike");
-  return (
-    <div class="tabs">
-      {tabs.map(([id, ic, name, on]) => (
-        <button
-          class={`tab ${ui.tab === id ? "on" : ""} ${on ? "" : "locked"}`}
-          onClick={() => {
-            if (!on) return toast(`챕터 ${id === "lab" ? FEATURE_CHAPTER.research : id === "map" ? FEATURE_CHAPTER.branches : FEATURE_CHAPTER.managers}에서 열린다`);
-            closeSheet();
-            setTab(ui.tab === id && id !== "shop" ? "shop" : id);
-          }}
-        >
-          <span class="ic">{ic}</span>
-          {name}
-          {id === "staff" && canHire && <span class="badge" />}
-          {id === "lab" && on && s.research.ideas >= 10 + s.research.tries * 4 && <span class="badge" />}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- 토스트, 챕터 카드, 대화, 모달
-
-function Toasts() {
-  return (
-    <div class="toasts">
-      {ui.toasts.map((t) => <div key={t.id} class={`toast ${t.gold ? "gold" : ""}`}>{t.text}</div>)}
-    </div>
-  );
-}
-
-function ChapterCard() {
-  const c = ui.chapterCard;
-  if (!c) return null;
-  return (
-    <div class="chapter-card">
-      <div>
-        <div class="num">CHAPTER {c.n}</div>
-        <div class="ttl">{c.title}</div>
-      </div>
-    </div>
-  );
-}
-
-function finishDialog() {
-  ui.s.seen[ui.dialogKey] = true;
-  ui.dialog = [];
-  const after = (ui as any).afterDialog;
-  (ui as any).afterDialog = null;
-  bump();
-  if (after) after();
-}
-
-function Dialog() {
-  if (!ui.dialog.length) return null;
-  const [who, text] = ui.dialog[0];
-  const next = () => {
-    sfx("next");
-    ui.dialog = ui.dialog.slice(1);
-    if (!ui.dialog.length) finishDialog();
-    else bump();
-  };
-  return (
-    <>
-      <div class="dialog" onClick={next}>
-        <div class={`dlg-box ${who === "narr" ? "narr" : ""}`}>
-          {who !== "narr" && <div class="por"><Portrait who={who} /></div>}
-          <div style={{ flex: 1 }}>
-            {who !== "narr" && <div class="spk">{SPEAKER_NAME[who]}</div>}
-            <div class="txt">{text}</div>
-          </div>
-          <span class="next">▼</span>
-        </div>
-      </div>
-      <button class="btn ghost small dlg-skip" onClick={finishDialog}>건너뛰기</button>
-    </>
-  );
-}
-
-function Modal() {
-  const m = ui.modal;
-  if (!m) return null;
-  const close = () => {
-    ui.modal = null;
-    bump();
-  };
-  if (m.kind === "offline")
-    return (
-      <div class="modal" onClick={close}>
-        <div class="modal-box">
-          <h3>자리를 비운 동안</h3>
-          <div class="desc">{duration(m.away)} 동안 매니저들이 가게를 지켰다.</div>
-          <div class="big">+{won(m.money)}</div>
-          <div class="desc muted">매니저가 있는 라인만 돌아간다. 최대 {duration(G.offlineSeconds(ui.s))}.</div>
-          <button class="btn wide">좋다</button>
-        </div>
-      </div>
-    );
-  if (m.kind === "confirm")
-    return (
-      <div class="modal">
-        <div class="modal-box">
-          <h3>확인</h3>
-          <div class="desc">{m.text}</div>
-          <div class="grid2" style={{ marginTop: 12 }}>
-            <button class="btn ghost" onClick={close}>아니</button>
-            <button class="btn red" onClick={() => { close(); m.ok(); }}>그래</button>
-          </div>
-        </div>
-      </div>
-    );
-  if (m.kind === "ending")
-    return (
-      <div class="modal" onClick={close}>
-        <div class="modal-box">
-          <h3>감자 주식회사</h3>
-          <div class="big">— 끝 —</div>
-          <div class="desc">플레이 시간 {duration(ui.s.played)}<br />누적 매출 {won(ui.s.earnedAll)}<br />분점 {ui.s.branches.length}개 · 매니저 {ui.s.managers.length}명</div>
-          <div class="desc acc">지도에 신시장이 열렸다. 리부트, 신시장, 도감으로 계속 플레이할 수 있다.</div>
-          <button class="btn wide">계속하기</button>
-        </div>
-      </div>
-    );
-  return null;
 }
