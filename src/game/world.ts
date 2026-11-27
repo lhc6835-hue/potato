@@ -3,7 +3,7 @@ import {
   Painter, Color, Particles, Bits, P, PF, B, Rng, hex, ramp, mix, scale, clearFrame, painterFor, createFx, FxInstance, WHITE, TAU, clamp,
 } from "../vendor/pixelfx/core/index.js";
 import { View } from "../engine/view";
-import { htext } from "../engine/htext";
+import { htext, hmask } from "../engine/htext";
 import { sfx, haptic, music, Mat } from "../engine/audio";
 import { short } from "../engine/num";
 import { ELEM, Elem } from "../data/elements";
@@ -820,7 +820,8 @@ class World {
       p.text(f.s, f.x, f.y, (_gx: number, gy: number) => (gy < 3 ? f.c : scale(f.c, 0.78)), { font: "big", scale: pop, align: "center", outline: f.o, a });
     }
     for (const c of this.callouts) {
-      const u = c.t / c.max, k = c.k, pop = u < 0.08 ? 1.4 : 1;
+      const u = c.t / c.max, pop = u < 0.08 ? 1.4 : 1;
+      const k = c.k > 1 && hmask(c.s).w * c.k > this.W - 8 ? 1 : c.k;
       const a = u > 0.8 ? (1 - u) / 0.2 : 1, y = c.y - u * 10;
       htext(p, c.s, c.x, y - (pop > 1 ? 3 : 0), c.c1, c.c2, INK, k, a);
     }

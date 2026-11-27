@@ -95,8 +95,8 @@ export const milestone = (lv: number) => Math.pow(2, Math.floor(lv / 25)) * Math
 export function weaponDmg(w: WeaponDef, lv = S.weapons[w.id]?.lv ?? 1, enh = S.weapons[w.id]?.enh ?? 0) {
   return w.pow * lv * milestone(lv) * (1 + 0.3 * enh + 0.04 * enh * enh);
 }
-export const weaponCost = (w: WeaponDef, lv: number) => Math.pow(w.pow, 0.72) * 8 * Math.pow(1.1, lv - 1) * (1 + Math.floor(lv / 25) * 0.6);
-export const unlockCost = (w: WeaponDef) => (w.id === "fist0" ? 0 : Math.max(40, Math.pow(w.pow, 1.5) * 60));
+export const weaponCost = (w: WeaponDef, lv: number) => Math.pow(w.pow, 0.72) * 6 * Math.pow(1.1, lv - 1) * (1 + Math.floor(lv / 25) * 0.6);
+export const unlockCost = (w: WeaponDef) => (w.id === "fist0" ? 0 : Math.max(25, Math.pow(w.pow, 1.5) * 28));
 export const enhanceCost = (enh: number) => enh + 1;
 export const enhanceRate = (enh: number) => Math.max(0.25, 1 - enh * 0.08);
 export const ENH_MAX = 10;
@@ -106,11 +106,13 @@ export const crewCost = (c: CrewDef, lv: number) => c.cost * Math.pow(1.1, lv);
 export const facCost = (f: FacilityDef, lv: number) => f.cost * Math.pow(f.grow, lv);
 export const talCost = (t: TalentDef, lv: number) => Math.ceil(t.cost * Math.pow(t.grow, lv));
 
-/** 영혼 1개당 피해 +5% (평생 모은 영혼 기준) */
+/** 영혼 1개당 피해 +3% (평생 모은 영혼 기준) */
 export const soulMul = () => 1 + S.soulsTotal * 0.03;
 export const dmgMul = () => (1 + facV("forge")) * (1 + talV("might")) * soulMul();
 export const crewMul = () => (1 + facV("drill")) * (1 + talV("crew")) * soulMul();
-export const goldMul = () => (1 + facV("vault")) * (1 + talV("midas")) * (S.boost > Date.now() ? 2 : 1);
+/** 초반 30스테이지는 골드를 더 준다 (첫 무기들을 빨리 만져 보도록) */
+export const earlyMul = () => 1 + Math.max(0, 30 - S.stage) / 5;
+export const goldMul = () => (1 + facV("vault")) * (1 + talV("midas")) * (S.boost > Date.now() ? 2 : 1) * earlyMul();
 export const critChance = (w?: WeaponDef) => 0.05 + facV("zen") + (w?.sp?.crit ?? 0);
 export const critDmg = (w?: WeaponDef) => 2 + facV("drum") + talV("fury") + (w?.sp?.critDmg ?? 0) + (w?.elem === "shadow" ? 0.5 : 0);
 export const feverGain = () => 1 + facV("altar");

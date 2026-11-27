@@ -272,7 +272,7 @@ function AscTab() {
         <Icon src={pix("soul")} size={40} />
         <div>
           <b>환생</b>
-          <p>스테이지 60부터 환생할 수 있습니다. 골드, 무기 레벨, 동료, 시설이 초기화되는 대신 영혼을 얻습니다. 영혼 하나당 모든 피해 +5% (평생 누적), 그리고 영혼 각인을 살 수 있습니다. 무기 소유·강화·보석·강화석은 유지됩니다.</p>
+          <p>스테이지 60부터 환생할 수 있습니다. 골드, 무기 레벨, 동료, 시설이 초기화되는 대신 영혼을 얻습니다. 영혼 하나당 모든 피해 +3% (평생 누적), 그리고 영혼 각인을 살 수 있습니다. 무기 소유·강화·보석·강화석은 유지됩니다.</p>
           <p>지금 환생하면 <b class="soulc">영혼 +{gain}</b> · 누적 영혼 {fmt(S.soulsTotal)} (피해 x{St.soulMul().toFixed(2)})</p>
           {!ask ? <Btn kind="asc" disabled={!St.canAscend() || gain <= 0} onClick={() => setAsk(true)}>{St.canAscend() ? "환생하기" : `스테이지 60 필요 (최고 ${S.maxStage})`}</Btn>
             : <div class="cbtns"><Btn kind="asc" onClick={() => { A.ascend(); setAsk(false); }}>정말 환생</Btn><Btn onClick={() => setAsk(false)}>취소</Btn></div>}

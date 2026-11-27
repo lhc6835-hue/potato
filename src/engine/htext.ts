@@ -6,6 +6,9 @@ export interface HMask { w: number; h: number; data: Uint8Array }
 const cache = new Map<string, HMask>();
 let cv: HTMLCanvasElement | null = null;
 
+/** 폰트가 늦게 로드되면 대체 글꼴로 구운 캐시를 버린다 */
+export function resetHText() { cache.clear(); }
+
 export function hmask(str: string, bold = true): HMask {
   const key = (bold ? "b" : "r") + str;
   let m = cache.get(key);

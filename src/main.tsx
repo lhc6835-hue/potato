@@ -1,6 +1,5 @@
 // 진입점: 화면(canvas)과 UI를 붙이고, 게임 루프·자동 저장·오프라인 보상을 돌린다.
 import { render } from "preact";
-import "galmuri/dist/galmuri.css";
 import "./ui/style.css";
 import { App } from "./ui/App";
 import { View } from "./engine/view";
@@ -9,6 +8,9 @@ import * as St from "./game/state";
 import { S } from "./game/state";
 import { audio, applyVolumes, unlockAudio, startMusic } from "./engine/audio";
 import { claimable } from "./game/actions";
+import { resetHText } from "./engine/htext";
+
+document.fonts?.load("bold 12px Galmuri11").then(resetHText, () => {});
 
 audio.sfx = S.opts.sfx;
 audio.music = S.opts.music;
