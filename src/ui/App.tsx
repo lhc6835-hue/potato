@@ -383,7 +383,7 @@ function OptTab() {
   return (
     <div class="opts">
       <label>효과음 <input type="range" min="0" max="1" step="0.05" value={S.opts.sfx} onInput={(e) => set(() => (S.opts.sfx = +(e.target as HTMLInputElement).value))} /></label>
-      <label>배경음 <input type="range" min="0" max="1" step="0.05" value={S.opts.music} onInput={(e) => set(() => (S.opts.music = +(e.target as HTMLInputElement).value))} /></label>
+      <label>징글(이벤트 음악) <input type="range" min="0" max="1" step="0.05" value={S.opts.music} onInput={(e) => set(() => (S.opts.music = +(e.target as HTMLInputElement).value))} /></label>
       <label>화면 흔들림 <input type="range" min="0" max="1.5" step="0.1" value={S.opts.shake} onInput={(e) => set(() => (S.opts.shake = +(e.target as HTMLInputElement).value))} /></label>
       <label><input type="checkbox" checked={S.opts.haptic} onChange={(e) => set(() => (S.opts.haptic = (e.target as HTMLInputElement).checked))} /> 진동</label>
       <label><input type="checkbox" checked={S.opts.dmgText} onChange={(e) => set(() => (S.opts.dmgText = (e.target as HTMLInputElement).checked))} /> 피해 숫자 표시</label>
@@ -397,7 +397,7 @@ function OptTab() {
       </div>
       {!wipe ? <Btn kind="danger" onClick={() => setWipe(true)}>처음부터 다시 하기</Btn>
         : <div class="cbtns"><Btn kind="danger" onClick={() => { St.wipe(); location.reload(); }}>모든 진행을 지웁니다</Btn><Btn onClick={() => setWipe(false)}>취소</Btn></div>}
-      <p class="credit">이펙트: patch-gg/pixelfx 코어(MIT)로 이 게임에서 새로 만든 효과 · 폰트: Galmuri (OFL) · 소리: WebAudio 합성</p>
+      <p class="credit">이펙트: patch-gg/pixelfx 코어(MIT)로 이 게임에서 새로 만든 효과 · 폰트: Galmuri (OFL) · 소리: Kenney 오디오 팩 (CC0)</p>
     </div>
   );
 }

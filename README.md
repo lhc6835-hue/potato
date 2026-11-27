@@ -30,7 +30,10 @@
 - 이펙트는 [patch-gg/pixelfx](https://github.com/patch-gg/pixelfx) 스킬의 가이드라인(색 버퍼 + 빛 버퍼, 단계 램프, 히어로 프레임,
   히트스톱, 예비 동작 → 타격 → 회복)에 맞춰 이 게임을 위해 새로 만들었다 (`src/fx`). 라이브러리의 샘플 이펙트는 쓰지 않고,
   엔진 코어(MIT, `src/vendor/pixelfx`)만 쓴다. 각 이펙트는 pixelfx 형식(`meta` + `create`)이라 pixelfx 도구로 렌더·검사할 수 있다.
-- 효과음·배경음은 WebAudio로 합성한다 (에셋 파일 없음). 폰트: Galmuri (OFL).
+- 소리는 [Kenney](https://kenney.nl) CC0 오디오 팩(Impact Sounds, RPG Audio, Interface Sounds, Sci-fi Sounds, Digital Audio,
+  Casino Audio, UI Audio, Music Jingles)에서 골라 모노 mp3로 바꿔 `src/sfx`에 넣었다. 변형 여러 개 중 무작위로 고르고 음높이·볼륨을
+  살짝 흔들며, 주먹 소리 + 샌드백 재질 소리처럼 층으로 쌓아 타격감을 낸다. 배경음 루프는 Kenney 팩에 없어서 쓰지 않고,
+  피버·보스·지역 이동 때 Kenney 징글을 튼다. 폰트: Galmuri (OFL).
 
 ## 실행
 
