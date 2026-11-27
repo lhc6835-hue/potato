@@ -1,0 +1,11 @@
+배경음 출처 (모두 CC0, https://creativecommons.org/publicdomain/zero/1.0/)
+CC0이라 표기 의무는 없지만 감사의 뜻으로 적어 둔다. 게임에 맞게 모노 mp3로 바꾸고 음량을 맞췄으며, 루프용이 아닌 곡은 앞뒤 무음을 잘랐다.
+
+bgm_inn.mp3     초보자의 수련장  "Medieval: The Old Tower Inn"  RandomMind    https://opengameart.org/content/medieval-the-old-tower-inn
+bgm_bard.mp3    엘프의 숲        "Medieval: The Bard's Tale"    RandomMind    https://opengameart.org/content/medieval-the-bards-tale
+bgm_mines.mp3   드워프 광산      "Tha'el Mines" (JRPG Music Pack #1 Exploration)  Juhani Junkala (SubspaceAudio)  https://opengameart.org/content/jrpg-pack-1-exploration
+bgm_mirror.mp3  얼음 협곡        "Mirror Lake"                  Joth          https://opengameart.org/content/mirror-lake
+bgm_forge.mp3   화산 대장간      "Medieval: Battle"             RandomMind    https://opengameart.org/content/medieval-battle
+bgm_sky.mp3     하늘섬 신전      "Fantasy Orchestral Theme"     Joth          https://opengameart.org/content/fantasy-orchestral-theme
+bgm_castle.mp3  마왕성           "Witch's Lair" (JRPG Music Pack #3 Evil)  Juhani Junkala (SubspaceAudio)  https://opengameart.org/content/jrpg-pack-3-evil
+bgm_abyss.mp3   끝없는 심연      "Whispers From Beyond" (JRPG Music Pack #3 Evil)  Juhani Junkala (SubspaceAudio)  https://opengameart.org/content/jrpg-pack-3-evil
