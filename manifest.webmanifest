@@ -1,0 +1,9 @@
+{
+  "name": "샌드백 타이쿤",
+  "short_name": "샌드백",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#120c16",
+  "theme_color": "#120c16"
+}
